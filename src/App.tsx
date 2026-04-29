@@ -19,13 +19,13 @@ export default function App() {
                     <Route element={<AppLayout />}>
                         <Route index path="/" element={<Home />} />
 
+                        {/* DIGEMID */}
+                        <Route path="/digemid" element={<DigemidPage />} />
+
                         {/* Gestión */}
                         <Route path="/roles" element={<RolesPage />} />
                         <Route path="/usuarios" element={<UsersPage />} />
                         <Route path="/personas" element={<PeoplePage />} />
-
-                        {/* DIGEMID */}
-                        <Route path="/digemid" element={<DigemidPage />} />
                     </Route>
 
                     {/* Auth Layout */}

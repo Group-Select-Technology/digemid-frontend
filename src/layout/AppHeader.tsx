@@ -25,6 +25,13 @@ const NAV_ENTRIES: NavEntry[] = [
     icon: <GridIcon className="w-4 h-4" />,
   },
   {
+    label: "DIGEMID",
+    description: "Catálogo de productos DIGEMID",
+    path: "/digemid",
+    keywords: ["digemid", "productos", "medicamentos", "catalogo", "excel", "farmaceutico"],
+    icon: <TableIcon className="w-4 h-4" />,
+  },
+  {
     label: "Roles",
     description: "Gestión de roles del sistema",
     path: "/roles",
@@ -43,13 +50,6 @@ const NAV_ENTRIES: NavEntry[] = [
     description: "Gestión de personas",
     path: "/personas",
     keywords: ["personas", "persona", "people", "contactos"],
-    icon: <TableIcon className="w-4 h-4" />,
-  },
-  {
-    label: "DIGEMID",
-    description: "Catálogo de productos DIGEMID",
-    path: "/digemid",
-    keywords: ["digemid", "productos", "medicamentos", "catalogo", "excel", "farmaceutico"],
     icon: <TableIcon className="w-4 h-4" />,
   },
 ];
