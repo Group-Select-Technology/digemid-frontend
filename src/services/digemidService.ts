@@ -1,19 +1,16 @@
 import api from './api';
-import type { DigemidProduct, PaginationParams } from '../types';
+import type { DigemidProduct, UpdateDigemidDto, PaginationParams } from '../types';
 
 export const digemidService = {
   getAll: (params?: PaginationParams) =>
     api.get<DigemidProduct[]>('/digemid', { params }).then((r) => r.data),
 
-  // Not yet functional — placeholder for future endpoint
-  getOne: (id: number) =>
-    api.get<DigemidProduct>(`/digemid/${id}`).then((r) => r.data),
+  getOne: (term: string | number) =>
+    api.get<DigemidProduct>(`/digemid/${term}`).then((r) => r.data),
 
-  // Not yet functional — placeholder for future endpoint
-  update: (id: number, dto: Partial<DigemidProduct>) =>
+  update: (id: number, dto: UpdateDigemidDto) =>
     api.patch<DigemidProduct>(`/digemid/${id}`, dto).then((r) => r.data),
 
-  // Not yet functional — placeholder for future endpoint
   remove: (id: number) =>
     api.delete(`/digemid/${id}`).then((r) => r.data),
 

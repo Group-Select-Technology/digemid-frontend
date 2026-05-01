@@ -98,3 +98,18 @@ export interface DigemidProduct {
   nombreRubro: string;
   situacion: string;
 }
+
+export interface UpdateDigemidDto {
+  codigoProducto?: string;
+  nombreProducto?: string;
+  concentracion?: string;
+  formaFarmaceutica?: string;
+  presentacion?: string;
+  fraccion?: string;
+  numeroRegistroSanitario?: string;
+  nombreTitular?: string;
+  nombreFabricante?: string;
+  nombreIFA?: string;
+  nombreRubro?: string;
+  situacion?: string;
+}

@@ -3,12 +3,14 @@ import { useDropzone } from 'react-dropzone';
 import toast from 'react-hot-toast';
 import { extractApiError } from '../../utils/apiError';
 import { digemidService } from '../../services/digemidService';
-import type { DigemidProduct } from '../../types';
+import type { DigemidProduct, UpdateDigemidDto } from '../../types';
 import PageBreadCrumb from '../../components/common/PageBreadCrumb';
 import PageMeta from '../../components/common/PageMeta';
 import DataTable, { type Column } from '../../components/crud/DataTable';
 import Button from '../../components/ui/button/Button';
 import { Modal } from '../../components/ui/modal';
+import ConfirmModal from '../../components/crud/ConfirmModal';
+import { EyeIcon, PencilIcon, TrashBinIcon } from '../../icons';
 
 const PAGE_SIZE = 20;
 
@@ -19,11 +21,34 @@ export default function DigemidPage() {
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
 
+  // Search
+  const [searchTerm, setSearchTerm] = useState('');
+  const [searchResults, setSearchResults] = useState<DigemidProduct[] | null>(null);
+  const [searching, setSearching] = useState(false);
+
+  const displayData = searchResults ?? products;
+
   // Upload modal
   const [uploadOpen, setUploadOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
+
+  // Detail modal
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [detailProduct, setDetailProduct] = useState<DigemidProduct | null>(null);
+
+  // Edit modal
+  const [editOpen, setEditOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<DigemidProduct | null>(null);
+  const [editForm, setEditForm] = useState<UpdateDigemidDto>({});
+  const [saving, setSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
+  // Delete modal
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [targetProduct, setTargetProduct] = useState<DigemidProduct | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const fetchProducts = useCallback(async (pageIndex: number) => {
     setLoading(true);
@@ -52,7 +77,101 @@ export default function DigemidPage() {
     setPage(newPage);
   };
 
-  // Dropzone
+  // ── Search ──────────────────────────────────────────────────────────────────
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const term = searchTerm.trim();
+    if (!term) {
+      setSearchResults(null);
+      return;
+    }
+    setSearching(true);
+    setError(null);
+    try {
+      const result = await digemidService.getOne(term);
+      setSearchResults([result]);
+    } catch {
+      setSearchResults([]);
+      setError('No se encontró ningún producto con ese código o ID.');
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const clearSearch = () => {
+    setSearchTerm('');
+    setSearchResults(null);
+    setError(null);
+  };
+
+  // ── Detail ───────────────────────────────────────────────────────────────────
+  const openDetail = (product: DigemidProduct) => {
+    setDetailProduct(product);
+    setDetailOpen(true);
+  };
+
+  // ── Edit ─────────────────────────────────────────────────────────────────────
+  const openEdit = (product: DigemidProduct) => {
+    setEditingProduct(product);
+    setEditForm({
+      codigoProducto: product.codigoProducto,
+      nombreProducto: product.nombreProducto,
+      concentracion: product.concentracion,
+      formaFarmaceutica: product.formaFarmaceutica,
+      presentacion: product.presentacion,
+      fraccion: product.fraccion,
+      numeroRegistroSanitario: product.numeroRegistroSanitario,
+      nombreTitular: product.nombreTitular,
+      nombreFabricante: product.nombreFabricante,
+      nombreIFA: product.nombreIFA,
+      nombreRubro: product.nombreRubro,
+      situacion: product.situacion,
+    });
+    setEditError(null);
+    setEditOpen(true);
+  };
+
+  const handleSave = async () => {
+    if (!editingProduct) return;
+    setSaving(true);
+    try {
+      await digemidService.update(editingProduct.id, editForm);
+      toast.success('Producto actualizado correctamente.');
+      setEditOpen(false);
+      clearSearch();
+      fetchProducts(page);
+    } catch (err) {
+      const msg = extractApiError(err) ?? 'Error al guardar los cambios.';
+      setEditError(msg);
+      toast.error(msg);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ── Delete ───────────────────────────────────────────────────────────────────
+  const openDelete = (product: DigemidProduct) => {
+    setTargetProduct(product);
+    setDeleteOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!targetProduct) return;
+    setDeleting(true);
+    try {
+      await digemidService.remove(targetProduct.id);
+      toast.success('Producto eliminado correctamente.');
+      setDeleteOpen(false);
+      clearSearch();
+      fetchProducts(page);
+    } catch {
+      toast.error('Error al eliminar el producto.');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  // ── Dropzone ──────────────────────────────────────────────────────────────────
   const onDrop = useCallback((acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) {
       setUploadFile(acceptedFiles[0]);
@@ -114,6 +233,7 @@ export default function DigemidPage() {
     setUploadError(null);
   };
 
+  // ── Columns ───────────────────────────────────────────────────────────────────
   const columns: Column<DigemidProduct>[] = [
     {
       header: '#',
@@ -191,76 +311,37 @@ export default function DigemidPage() {
     },
     {
       header: 'Acciones',
-      render: () => (
+      render: (p) => (
         <div className="flex items-center gap-1">
-          {/* Ver detalle — endpoint /digemid/:id no funcional aún */}
           <button
-            disabled
-            title="Ver detalle (próximamente)"
-            className="p-1.5 rounded text-gray-300 dark:text-gray-600 cursor-not-allowed"
+            onClick={() => openDetail(p)}
+            title="Ver detalle"
+            className="p-1.5 text-gray-500 hover:text-brand-500 transition rounded"
           >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-              <circle cx="12" cy="12" r="3" />
-            </svg>
+            <EyeIcon className="w-4 h-4" />
           </button>
-          {/* Editar — endpoint PATCH /digemid/:id no funcional aún */}
           <button
-            disabled
-            title="Editar (próximamente)"
-            className="p-1.5 rounded text-gray-300 dark:text-gray-600 cursor-not-allowed"
+            onClick={() => openEdit(p)}
+            title="Editar"
+            className="p-1.5 text-gray-500 hover:text-brand-500 transition rounded"
           >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-            </svg>
+            <PencilIcon className="w-4 h-4" />
           </button>
-          {/* Eliminar — endpoint DELETE /digemid/:id no funcional aún */}
           <button
-            disabled
-            title="Eliminar (próximamente)"
-            className="p-1.5 rounded text-gray-300 dark:text-gray-600 cursor-not-allowed"
+            onClick={() => openDelete(p)}
+            title="Eliminar"
+            className="p-1.5 text-gray-500 hover:text-red-500 transition rounded"
           >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <polyline points="3 6 5 6 21 6" />
-              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-              <path d="M10 11v6M14 11v6" />
-              <path d="M9 6V4h6v2" />
-            </svg>
+            <TrashBinIcon className="w-4 h-4" />
           </button>
         </div>
       ),
     },
   ];
+
+  const inputClass =
+    'w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500';
+  const labelClass = 'block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1';
 
   return (
     <>
@@ -269,7 +350,7 @@ export default function DigemidPage() {
 
       <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">
         {/* Table header */}
-        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 dark:border-white/[0.05]">
+        <div className="flex flex-col gap-3 px-6 py-5 border-b border-gray-100 dark:border-white/[0.05] sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h3 className="text-base font-medium text-gray-800 dark:text-white/90">
               Catálogo de Productos
@@ -278,22 +359,55 @@ export default function DigemidPage() {
               Página {page + 1} · {PAGE_SIZE} registros por página
             </p>
           </div>
-          <Button size="sm" onClick={openUploadModal}>
-            Subir Excel
-          </Button>
+          <div className="flex items-center gap-3 flex-wrap">
+            <form onSubmit={handleSearch} className="flex items-center gap-2">
+              <div className="relative">
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    if (!e.target.value.trim()) clearSearch();
+                  }}
+                  placeholder="Buscar por código o ID..."
+                  className="w-52 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 pl-3 pr-8 py-2 text-sm text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                />
+                {searchTerm && (
+                  <button
+                    type="button"
+                    onClick={clearSearch}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                    title="Limpiar búsqueda"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+              <Button size="sm" disabled={searching || !searchTerm.trim()}>
+                {searching ? 'Buscando...' : 'Buscar'}
+              </Button>
+            </form>
+            <Button size="sm" onClick={openUploadModal}>
+              Subir Excel
+            </Button>
+          </div>
         </div>
 
         <DataTable
           columns={columns}
-          data={products}
-          loading={loading}
+          data={displayData}
+          loading={loading || searching}
           error={error}
-          emptyMessage="No hay productos registrados. Sube un archivo Excel para comenzar."
+          emptyMessage={
+            searchResults !== null
+              ? 'No se encontró ningún producto con ese código o ID.'
+              : 'No hay productos registrados. Sube un archivo Excel para comenzar.'
+          }
           keyExtractor={(p) => p.id}
         />
 
-        {/* Pagination */}
-        {!loading && !error && (
+        {/* Pagination — only shown when not in search mode */}
+        {!loading && !error && searchResults === null && (
           <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100 dark:border-white/[0.05]">
             <span className="text-xs text-gray-400 dark:text-gray-500">
               {products.length} registros en esta página
@@ -323,13 +437,203 @@ export default function DigemidPage() {
         )}
       </div>
 
-      {/* Upload Excel Modal */}
+      {/* ── Detail Modal ──────────────────────────────────────────────────────── */}
+      <Modal
+        isOpen={detailOpen}
+        onClose={() => setDetailOpen(false)}
+        className="max-w-2xl w-full mx-4 p-6"
+      >
+        <h4 className="text-lg font-semibold text-gray-800 dark:text-white mb-5">
+          Detalle del Producto
+        </h4>
+        {detailProduct && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
+            {(
+              [
+                ['ID', String(detailProduct.id)],
+                ['Código de Producto', detailProduct.codigoProducto],
+                ['Nombre del Producto', detailProduct.nombreProducto],
+                ['Concentración', detailProduct.concentracion],
+                ['Forma Farmacéutica', detailProduct.formaFarmaceutica],
+                ['Presentación', detailProduct.presentacion],
+                ['Fracción', detailProduct.fraccion],
+                ['N° Registro Sanitario', detailProduct.numeroRegistroSanitario],
+                ['Titular', detailProduct.nombreTitular],
+                ['Fabricante', detailProduct.nombreFabricante],
+                ['Nombre IFA', detailProduct.nombreIFA],
+                ['Rubro', detailProduct.nombreRubro],
+                ['Situación', detailProduct.situacion],
+              ] as [string, string][]
+            ).map(([label, value]) => (
+              <div key={label}>
+                <p className="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-0.5">
+                  {label}
+                </p>
+                <p className="text-sm text-gray-800 dark:text-white/90 break-words">
+                  {value || '—'}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="flex justify-end mt-6">
+          <Button variant="outline" onClick={() => setDetailOpen(false)}>
+            Cerrar
+          </Button>
+        </div>
+      </Modal>
+
+      {/* ── Edit Modal ────────────────────────────────────────────────────────── */}
+      <Modal
+        isOpen={editOpen}
+        onClose={() => { if (!saving) { setEditOpen(false); setEditError(null); } }}
+        className="max-w-2xl w-full mx-4 p-6"
+      >
+        <h4 className="text-lg font-semibold text-gray-800 dark:text-white mb-5">
+          Editar Producto
+        </h4>
+        {editError && (
+          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
+            {editError}
+          </div>
+        )}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className={labelClass}>Código de Producto</label>
+            <input
+              type="text"
+              value={editForm.codigoProducto ?? ''}
+              onChange={(e) => setEditForm({ ...editForm, codigoProducto: e.target.value })}
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className={labelClass}>Nombre del Producto</label>
+            <input
+              type="text"
+              value={editForm.nombreProducto ?? ''}
+              onChange={(e) => setEditForm({ ...editForm, nombreProducto: e.target.value })}
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className={labelClass}>Concentración</label>
+            <input
+              type="text"
+              value={editForm.concentracion ?? ''}
+              onChange={(e) => setEditForm({ ...editForm, concentracion: e.target.value })}
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className={labelClass}>Forma Farmacéutica</label>
+            <input
+              type="text"
+              value={editForm.formaFarmaceutica ?? ''}
+              onChange={(e) => setEditForm({ ...editForm, formaFarmaceutica: e.target.value })}
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className={labelClass}>Presentación</label>
+            <input
+              type="text"
+              value={editForm.presentacion ?? ''}
+              onChange={(e) => setEditForm({ ...editForm, presentacion: e.target.value })}
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className={labelClass}>Fracción</label>
+            <input
+              type="text"
+              value={editForm.fraccion ?? ''}
+              onChange={(e) => setEditForm({ ...editForm, fraccion: e.target.value })}
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className={labelClass}>N° Registro Sanitario</label>
+            <input
+              type="text"
+              value={editForm.numeroRegistroSanitario ?? ''}
+              onChange={(e) => setEditForm({ ...editForm, numeroRegistroSanitario: e.target.value })}
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className={labelClass}>Titular</label>
+            <input
+              type="text"
+              value={editForm.nombreTitular ?? ''}
+              onChange={(e) => setEditForm({ ...editForm, nombreTitular: e.target.value })}
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className={labelClass}>Fabricante</label>
+            <input
+              type="text"
+              value={editForm.nombreFabricante ?? ''}
+              onChange={(e) => setEditForm({ ...editForm, nombreFabricante: e.target.value })}
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className={labelClass}>Nombre IFA</label>
+            <input
+              type="text"
+              value={editForm.nombreIFA ?? ''}
+              onChange={(e) => setEditForm({ ...editForm, nombreIFA: e.target.value })}
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className={labelClass}>Rubro</label>
+            <input
+              type="text"
+              value={editForm.nombreRubro ?? ''}
+              onChange={(e) => setEditForm({ ...editForm, nombreRubro: e.target.value })}
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className={labelClass}>Situación</label>
+            <input
+              type="text"
+              value={editForm.situacion ?? ''}
+              onChange={(e) => setEditForm({ ...editForm, situacion: e.target.value })}
+              className={inputClass}
+            />
+          </div>
+        </div>
+        <div className="flex justify-end gap-3 mt-6">
+          <Button variant="outline" onClick={() => { setEditOpen(false); setEditError(null); }} disabled={saving}>
+            Cancelar
+          </Button>
+          <Button onClick={handleSave} disabled={saving}>
+            {saving ? 'Guardando...' : 'Guardar'}
+          </Button>
+        </div>
+      </Modal>
+
+      {/* ── Delete Modal ──────────────────────────────────────────────────────── */}
+      <ConfirmModal
+        isOpen={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+        onConfirm={handleDelete}
+        loading={deleting}
+        title="Eliminar Producto"
+        message={`¿Estás seguro de que deseas eliminar "${targetProduct?.nombreProducto}" (${targetProduct?.codigoProducto})? Esta acción no se puede deshacer.`}
+      />
+
+      {/* ── Upload Excel Modal ────────────────────────────────────────────────── */}
       <Modal
         isOpen={uploadOpen}
         onClose={closeUploadModal}
         className="max-w-lg w-full mx-4 p-6"
       >
-        {/* Processing overlay — blocks all interaction until upload finishes */}
+        {/* Processing overlay */}
         {uploading && (
           <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 rounded-3xl bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm">
             <svg
@@ -401,35 +705,33 @@ export default function DigemidPage() {
                 />
               </svg>
             </div>
-
-            {uploadFile ? (
+            {isDragActive ? (
+              <p className="text-sm text-brand-500 font-medium">Suelta el archivo aquí...</p>
+            ) : uploadFile ? (
               <div className="flex flex-col items-center gap-1">
-                <p className="text-sm font-medium text-gray-800 dark:text-white">
-                  {uploadFile.name}
-                </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  {(uploadFile.size / 1024 / 1024).toFixed(2)} MB · Haz clic para cambiar
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300">{uploadFile.name}</p>
+                <p className="text-xs text-gray-400">
+                  {(uploadFile.size / 1024 / 1024).toFixed(2)} MB
                 </p>
               </div>
             ) : (
-              <div className="flex flex-col items-center gap-1">
-                <p className="text-sm font-semibold text-gray-800 dark:text-white">
-                  {isDragActive ? 'Suelta el archivo aquí' : 'Arrastra tu archivo aquí'}
+              <>
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Arrastra un archivo aquí o{' '}
+                  <span className="text-brand-500">haz clic para seleccionar</span>
                 </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  o haz clic para seleccionar
-                </p>
-              </div>
+                <p className="text-xs text-gray-400">Formatos: .xlsx, .xls · Máx. 15 MB</p>
+              </>
             )}
           </div>
         </div>
 
-        <div className="mt-6 flex justify-end gap-3">
+        <div className="flex justify-end gap-3 mt-5">
           <Button variant="outline" onClick={closeUploadModal} disabled={uploading}>
             Cancelar
           </Button>
           <Button onClick={handleUpload} disabled={!uploadFile || uploading}>
-            {uploading ? 'Procesando...' : 'Subir y procesar'}
+            {uploading ? 'Subiendo...' : 'Subir'}
           </Button>
         </div>
       </Modal>
