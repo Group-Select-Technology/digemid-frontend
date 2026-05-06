@@ -10,6 +10,7 @@ import Button from '../../components/ui/button/Button';
 import { Modal } from '../../components/ui/modal';
 import ConfirmModal from '../../components/crud/ConfirmModal';
 import { PencilIcon, PlusIcon } from '../../icons';
+import CanAccess from '../../components/auth/CanAccess';
 
 const ROLE_CODES = ['ADMIN', 'SOPORTE', 'DESARROLLO'] as const;
 const emptyForm: CreateRoleDto = { code: 'ADMIN', name: '', description: '' };
@@ -120,27 +121,31 @@ export default function RolesPage() {
             header: 'Estado',
             sortValue: (role) => (role.isActive ? 'Activo' : 'Inactivo'),
             render: (role) => (
-                <button
-                    onClick={() => openToggleStatus(role)}
-                    className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium transition ${role.isActive
-                            ? 'bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400'
-                            : 'bg-red-100 text-red-600 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400'
-                        }`}
-                >
-                    {role.isActive ? 'Activo' : 'Inactivo'}
-                </button>
+                <CanAccess roles={['ADMIN']}>
+                    <button
+                        onClick={() => openToggleStatus(role)}
+                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium transition ${role.isActive
+                                ? 'bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400'
+                                : 'bg-red-100 text-red-600 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400'
+                            }`}
+                    >
+                        {role.isActive ? 'Activo' : 'Inactivo'}
+                    </button>
+                </CanAccess>
             ),
         },
         {
             header: 'Acciones',
             render: (role) => (
-                <button
-                    onClick={() => openEdit(role)}
-                    className="p-1.5 text-gray-500 hover:text-brand-500 transition"
-                    title="Editar"
-                >
-                    <PencilIcon className="w-4 h-4" />
-                </button>
+                <CanAccess roles={['ADMIN']}>
+                    <button
+                        onClick={() => openEdit(role)}
+                        className="p-1.5 text-gray-500 hover:text-brand-500 transition"
+                        title="Editar"
+                    >
+                        <PencilIcon className="w-4 h-4" />
+                    </button>
+                </CanAccess>
             ),
         },
     ];
@@ -153,9 +158,11 @@ export default function RolesPage() {
             <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">
                 <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 dark:border-white/[0.05]">
                     <h3 className="text-base font-medium text-gray-800 dark:text-white/90">Lista de Roles</h3>
-                    <Button size="sm" onClick={openCreate} startIcon={<PlusIcon className="w-4 h-4" />}>
-                        Nuevo Rol
-                    </Button>
+                    <CanAccess roles={['ADMIN']}>
+                        <Button size="sm" onClick={openCreate} startIcon={<PlusIcon className="w-4 h-4" />}>
+                            Nuevo Rol
+                        </Button>
+                    </CanAccess>
                 </div>
 
                 <DataTable

@@ -10,7 +10,8 @@ import DataTable, { type Column } from '../../components/crud/DataTable';
 import Button from '../../components/ui/button/Button';
 import { Modal } from '../../components/ui/modal';
 import ConfirmModal from '../../components/crud/ConfirmModal';
-import { PencilIcon, PlusIcon, TrashBinIcon } from '../../icons';
+import { PencilIcon, PlusIcon, TrashBinIcon, EyeIcon } from '../../icons';
+import CanAccess from '../../components/auth/CanAccess';
 
 const ROLE_CODES = ['ADMIN', 'SOPORTE', 'DESARROLLO'] as const;
 const DOC_TYPES = ['DNI', 'PASSPORT', 'RUC'] as const;
@@ -41,6 +42,10 @@ export default function UsersPage() {
   const [confirmType, setConfirmType] = useState<'delete' | 'toggle' | 'reset'>('delete');
   const [targetUser, setTargetUser] = useState<User | null>(null);
   const [confirming, setConfirming] = useState(false);
+
+  // View details modal
+  const [viewOpen, setViewOpen] = useState(false);
+  const [viewUser, setViewUser] = useState<User | null>(null);
 
   // Reset password result
   const [resetPasswordOpen, setResetPasswordOpen] = useState(false);
@@ -77,7 +82,7 @@ export default function UsersPage() {
 
   const openEdit = (user: User) => {
     setEditingUser(user);
-    setEditForm({ corporateEmail: user.corporateEmail, roleCode: user.role.code as CreateUserDto['roleCode'] });
+    setEditForm({ email: user.email, roleCode: user.role.code as CreateUserDto['roleCode'] });
     setFormError(null);
     setFormOpen(true);
   };
@@ -123,7 +128,7 @@ export default function UsersPage() {
         const newPassword: string = await usersService.resetPassword(targetUser.id);
         toast.success('Contraseña reseteada correctamente.');
         setConfirmOpen(false);
-        setResetPasswordData({ email: targetUser.corporateEmail, password: newPassword });
+        setResetPasswordData({ email: targetUser.email, password: newPassword });
         setResetPasswordOpen(true);
         return;
       }
@@ -139,15 +144,15 @@ export default function UsersPage() {
   const confirmMessages: Record<string, { title: string; message: string }> = {
     delete: {
       title: 'Eliminar Usuario',
-      message: `¿Estás seguro de que deseas eliminar al usuario "${targetUser?.corporateEmail}"? Esta acción no se puede deshacer.`,
+      message: `¿Estás seguro de que deseas eliminar al usuario "${targetUser?.email}"? Esta acción no se puede deshacer.`,
     },
     toggle: {
       title: targetUser?.isActive ? 'Desactivar Usuario' : 'Activar Usuario',
-      message: `¿Estás seguro de que deseas ${targetUser?.isActive ? 'desactivar' : 'activar'} al usuario "${targetUser?.corporateEmail}"?`,
+      message: `¿Estás seguro de que deseas ${targetUser?.isActive ? 'desactivar' : 'activar'} al usuario "${targetUser?.email}"?`,
     },
     reset: {
       title: 'Resetear Contraseña',
-      message: `¿Estás seguro de que deseas resetear la contraseña del usuario "${targetUser?.corporateEmail}"?`,
+      message: `¿Estás seguro de que deseas resetear la contraseña del usuario "${targetUser?.email}"?`,
     },
   };
 
@@ -169,8 +174,8 @@ export default function UsersPage() {
     },
     {
       header: 'Correo',
-      sortValue: (user) => user.corporateEmail,
-      render: (user) => user.corporateEmail,
+      sortValue: (user) => user.email,
+      render: (user) => user.email,
     },
     {
       header: 'Rol',
@@ -197,15 +202,20 @@ export default function UsersPage() {
       header: 'Acciones',
       render: (user) => (
         <div className="flex items-center gap-1">
-          <button onClick={() => openEdit(user)} className="p-1.5 text-gray-500 hover:text-brand-500 transition" title="Editar">
-            <PencilIcon className="w-4 h-4" />
-          </button>
-          <button onClick={() => openConfirm(user, 'reset')} className="p-1.5 text-gray-500 hover:text-yellow-500 transition" title="Resetear contraseña">
-            🔑
-          </button>
-          <button onClick={() => openConfirm(user, 'delete')} className="p-1.5 text-gray-500 hover:text-red-500 transition" title="Eliminar">
-            <TrashBinIcon className="w-4 h-4" />
-          </button>
+          <CanAccess roles={['ADMIN']}>
+            <button onClick={() => { setViewUser(user); setViewOpen(true); }} className="p-1.5 text-gray-500 hover:text-brand-500 transition" title="Ver detalles">
+              <EyeIcon className="w-4 h-4" />
+            </button>
+            <button onClick={() => openEdit(user)} className="p-1.5 text-gray-500 hover:text-brand-500 transition" title="Editar">
+              <PencilIcon className="w-4 h-4" />
+            </button>
+            <button onClick={() => openConfirm(user, 'reset')} className="p-1.5 text-gray-500 hover:text-yellow-500 transition" title="Resetear contraseña">
+              🔑
+            </button>
+            <button onClick={() => openConfirm(user, 'delete')} className="p-1.5 text-gray-500 hover:text-red-500 transition" title="Eliminar">
+              <TrashBinIcon className="w-4 h-4" />
+            </button>
+          </CanAccess>
         </div>
       ),
     },
@@ -219,9 +229,11 @@ export default function UsersPage() {
       <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">
         <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 dark:border-white/[0.05]">
           <h3 className="text-base font-medium text-gray-800 dark:text-white/90">Lista de Usuarios</h3>
-          <Button size="sm" onClick={openCreate} startIcon={<PlusIcon className="w-4 h-4" />}>
-            Nuevo Usuario
-          </Button>
+          <CanAccess roles={['ADMIN']}>
+            <Button size="sm" onClick={openCreate} startIcon={<PlusIcon className="w-4 h-4" />}>
+              Nuevo Usuario
+            </Button>
+          </CanAccess>
         </div>
 
         <DataTable
@@ -251,8 +263,8 @@ export default function UsersPage() {
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Correo Corporativo</label>
                 <input
                   type="email"
-                  value={editForm.corporateEmail ?? ''}
-                  onChange={(e) => setEditForm({ ...editForm, corporateEmail: e.target.value })}
+                  value={editForm.email ?? ''}
+                  onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
                   className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
                 />
               </div>
@@ -390,6 +402,91 @@ export default function UsersPage() {
         </div>
         <div className="flex justify-end mt-6">
           <Button onClick={() => { setResetPasswordOpen(false); setCopied(false); }}>Cerrar</Button>
+        </div>
+      </Modal>
+
+      {/* View User Details Modal */}
+      <Modal isOpen={viewOpen} onClose={() => setViewOpen(false)} className="max-w-lg p-6">
+        <h4 className="text-lg font-semibold text-gray-800 dark:text-white mb-5">
+          Detalles del Usuario
+        </h4>
+        {viewUser && (
+          <div className="space-y-5">
+            {/* Avatar + name */}
+            <div className="flex items-center gap-4">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-brand-100 dark:bg-brand-900">
+                <span className="text-xl font-bold text-brand-600 dark:text-brand-300">
+                  {viewUser.person?.firstName?.charAt(0).toUpperCase() ?? '?'}
+                </span>
+              </div>
+              <div>
+                <p className="font-semibold text-gray-800 dark:text-white/90 capitalize">
+                  {viewUser.person ? `${viewUser.person.firstName} ${viewUser.person.lastName}` : '—'}
+                </p>
+                <span className={`inline-block mt-0.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                  viewUser.isActive
+                    ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                    : 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400'
+                }`}>
+                  {viewUser.isActive ? 'Activo' : 'Inactivo'}
+                </span>
+              </div>
+            </div>
+
+            <hr className="border-gray-100 dark:border-gray-800" />
+
+            {/* Account info */}
+            <div>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Cuenta</p>
+              <dl className="grid grid-cols-2 gap-3">
+                <div>
+                  <dt className="text-xs text-gray-500 dark:text-gray-400">Correo</dt>
+                  <dd className="mt-0.5 text-sm text-gray-800 dark:text-white/90 break-all">{viewUser.email}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-gray-500 dark:text-gray-400">Rol</dt>
+                  <dd className="mt-0.5 text-sm text-gray-800 dark:text-white/90">{viewUser.role?.name ?? '—'}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-gray-500 dark:text-gray-400">Último acceso</dt>
+                  <dd className="mt-0.5 text-sm text-gray-800 dark:text-white/90">
+                    {viewUser.lastLogin ? new Date(viewUser.lastLogin).toLocaleString('es-PE') : 'Nunca'}
+                  </dd>
+                </div>
+              </dl>
+            </div>
+
+            {viewUser.person && (
+              <>
+                <hr className="border-gray-100 dark:border-gray-800" />
+                {/* Person info */}
+                <div>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Datos personales</p>
+                  <dl className="grid grid-cols-2 gap-3">
+                    <div>
+                      <dt className="text-xs text-gray-500 dark:text-gray-400">Nombres</dt>
+                      <dd className="mt-0.5 text-sm text-gray-800 dark:text-white/90 capitalize">{viewUser.person.firstName}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs text-gray-500 dark:text-gray-400">Apellidos</dt>
+                      <dd className="mt-0.5 text-sm text-gray-800 dark:text-white/90 capitalize">{viewUser.person.lastName}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs text-gray-500 dark:text-gray-400">Tipo de documento</dt>
+                      <dd className="mt-0.5 text-sm text-gray-800 dark:text-white/90">{viewUser.person.documentType}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs text-gray-500 dark:text-gray-400">Nro. documento</dt>
+                      <dd className="mt-0.5 text-sm text-gray-800 dark:text-white/90">{viewUser.person.documentNumber}</dd>
+                    </div>
+                  </dl>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+        <div className="flex justify-end mt-6">
+          <Button onClick={() => setViewOpen(false)}>Cerrar</Button>
         </div>
       </Modal>
 

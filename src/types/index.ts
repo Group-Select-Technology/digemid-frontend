@@ -1,3 +1,12 @@
+// ---- Auth ----
+export interface AuthUser {
+  id: number;
+  email: string;
+  fullName: string;
+  role: string;
+  roleCode: RoleCode;
+}
+
 // ---- Roles ----
 export type RoleCode = 'ADMIN' | 'SOPORTE' | 'DESARROLLO';
 
@@ -44,7 +53,7 @@ export interface UpdatePersonDto {
 // ---- Users ----
 export interface User {
   id: number;
-  corporateEmail: string;
+  email: string;
   isActive: boolean;
   lastLogin: string | null;
   person: Person;
@@ -68,7 +77,7 @@ export interface CreateUserDto {
 }
 
 export interface UpdateUserDto {
-  corporateEmail?: string;
+  email?: string;
   roleCode?: RoleCode;
 }
 
@@ -83,6 +92,13 @@ export interface PaginationStatusParams extends PaginationParams {
 }
 
 // ---- Digemid ----
+export interface DigemidProductUser {
+  id: number;
+  email: string;
+  fullName: string;
+  role: string;
+}
+
 export interface DigemidProduct {
   id: number;
   codigoProducto: string;
@@ -97,6 +113,22 @@ export interface DigemidProduct {
   nombreIFA: string;
   nombreRubro: string;
   situacion: string;
+  createdAt: string;
+  updatedAt: string;
+  user: DigemidProductUser;
+}
+
+export interface DigemidPaginationMeta {
+  totalItems: number;
+  itemCount: number;
+  itemsPerPage: number;
+  totalPages: number;
+  currentPage: number;
+}
+
+export interface DigemidPaginatedResponse {
+  data: DigemidProduct[];
+  meta: DigemidPaginationMeta;
 }
 
 export interface UpdateDigemidDto {

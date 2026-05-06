@@ -8,33 +8,44 @@ import RolesPage from "./pages/Roles/RolesPage";
 import UsersPage from "./pages/Users/UsersPage";
 import PeoplePage from "./pages/People/PeoplePage";
 import DigemidPage from "./pages/Digemid/DigemidPage";
+import ProfilePage from "./pages/Profile/ProfilePage";
+import { AuthProvider } from "./context/AuthContext";
+import ProtectedRoute from "./components/auth/ProtectedRoute";
+import PublicRoute from "./components/auth/PublicRoute";
 
 export default function App() {
     return (
-        <>
+        <AuthProvider>
             <Router>
                 <ScrollToTop />
                 <Routes>
-                    {/* Dashboard Layout */}
-                    <Route element={<AppLayout />}>
-                        <Route index path="/" element={<Home />} />
+                    {/* Protected routes — require authentication */}
+                    <Route element={<ProtectedRoute />}>
+                        <Route element={<AppLayout />}>
+                            <Route index path="/" element={<Home />} />
 
-                        {/* DIGEMID */}
-                        <Route path="/digemid" element={<DigemidPage />} />
+                            {/* DIGEMID */}
+                            <Route path="/digemid" element={<DigemidPage />} />
 
-                        {/* Gestión */}
-                        <Route path="/roles" element={<RolesPage />} />
-                        <Route path="/usuarios" element={<UsersPage />} />
-                        <Route path="/personas" element={<PeoplePage />} />
+                            {/* Gestión */}
+                            <Route path="/roles" element={<RolesPage />} />
+                            <Route path="/usuarios" element={<UsersPage />} />
+                            <Route path="/personas" element={<PeoplePage />} />
+
+                            {/* Perfil */}
+                            <Route path="/profile" element={<ProfilePage />} />
+                        </Route>
                     </Route>
 
-                    {/* Auth Layout */}
-                    <Route path="/signin" element={<SignIn />} />
+                    {/* Public routes — redirect to dashboard if already logged in */}
+                    <Route element={<PublicRoute />}>
+                        <Route path="/signin" element={<SignIn />} />
+                    </Route>
 
                     {/* Fallback Route */}
                     <Route path="*" element={<NotFound />} />
                 </Routes>
             </Router>
-        </>
+        </AuthProvider>
     );
 }

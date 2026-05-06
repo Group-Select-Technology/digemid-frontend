@@ -3,7 +3,7 @@ import { useDropzone } from 'react-dropzone';
 import toast from 'react-hot-toast';
 import { extractApiError } from '../../utils/apiError';
 import { digemidService } from '../../services/digemidService';
-import type { DigemidProduct, UpdateDigemidDto } from '../../types';
+import type { DigemidProduct, DigemidPaginationMeta, UpdateDigemidDto } from '../../types';
 import PageBreadCrumb from '../../components/common/PageBreadCrumb';
 import PageMeta from '../../components/common/PageMeta';
 import DataTable, { type Column } from '../../components/crud/DataTable';
@@ -12,14 +12,14 @@ import { Modal } from '../../components/ui/modal';
 import ConfirmModal from '../../components/crud/ConfirmModal';
 import { EyeIcon, PencilIcon, TrashBinIcon } from '../../icons';
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 10;
 
 export default function DigemidPage() {
   const [products, setProducts] = useState<DigemidProduct[]>([]);
+  const [meta, setMeta] = useState<DigemidPaginationMeta | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [page, setPage] = useState(0);
-  const [hasMore, setHasMore] = useState(true);
+  const [page, setPage] = useState(1);
 
   // Search
   const [searchTerm, setSearchTerm] = useState('');
@@ -54,12 +54,12 @@ export default function DigemidPage() {
     setLoading(true);
     setError(null);
     try {
-      const data = await digemidService.getAll({
+      const response = await digemidService.getAll({
         limit: PAGE_SIZE,
-        offset: pageIndex * PAGE_SIZE,
+        offset: (pageIndex - 1) * PAGE_SIZE,
       });
-      setProducts(data);
-      setHasMore(data.length === PAGE_SIZE);
+      setProducts(response.data);
+      setMeta(response.meta);
     } catch {
       setError('Error al cargar los datos DIGEMID.');
     } finally {
@@ -72,8 +72,8 @@ export default function DigemidPage() {
   }, [page, fetchProducts]);
 
   const goToPage = (newPage: number) => {
-    if (newPage < 0) return;
-    if (newPage > page && !hasMore) return;
+    if (!meta) return;
+    if (newPage < 1 || newPage > meta.totalPages) return;
     setPage(newPage);
   };
 
@@ -209,10 +209,14 @@ export default function DigemidPage() {
       toast.success(`${result.message} — ${result.total} registros procesados.`);
       setUploadOpen(false);
       setUploadFile(null);
-      setPage(0);
-      fetchProducts(0);
+      setPage(1);
+      fetchProducts(1);
     } catch (err) {
-      const msg = extractApiError(err) ?? 'Error al procesar el archivo.';
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      const msg =
+        status === 429
+          ? 'Demasiadas solicitudes. Por favor espere unos minutos antes de volver a intentarlo.'
+          : (extractApiError(err) ?? 'Error al procesar el archivo.');
       setUploadError(msg);
       toast.error(msg);
     } finally {
@@ -356,7 +360,9 @@ export default function DigemidPage() {
               Catálogo de Productos
             </h3>
             <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
-              Página {page + 1} · {PAGE_SIZE} registros por página
+              {meta
+                ? `${meta.totalItems.toLocaleString()} registros · página ${meta.currentPage} de ${meta.totalPages}`
+                : `${PAGE_SIZE} registros por página`}
             </p>
           </div>
           <div className="flex items-center gap-3 flex-wrap">
@@ -407,30 +413,47 @@ export default function DigemidPage() {
         />
 
         {/* Pagination — only shown when not in search mode */}
-        {!loading && !error && searchResults === null && (
+        {!loading && !error && searchResults === null && meta && (
           <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100 dark:border-white/[0.05]">
             <span className="text-xs text-gray-400 dark:text-gray-500">
-              {products.length} registros en esta página
+              {((meta.currentPage - 1) * meta.itemsPerPage + 1).toLocaleString()}
+              {'–'}
+              {Math.min(meta.currentPage * meta.itemsPerPage, meta.totalItems).toLocaleString()}
+              {' de '}
+              {meta.totalItems.toLocaleString()} registros
             </span>
-            <div className="flex items-center gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => goToPage(page - 1)}
-                disabled={page === 0}
-              >
+            <div className="flex items-center gap-1">
+              <Button size="sm" variant="outline" onClick={() => goToPage(1)} disabled={page === 1}>
+                «
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => goToPage(page - 1)} disabled={page === 1}>
                 ← Anterior
               </Button>
-              <span className="px-3 py-1 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 rounded-lg">
-                {page + 1}
-              </span>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => goToPage(page + 1)}
-                disabled={!hasMore}
-              >
+              {/* Page number pills */}
+              {Array.from({ length: Math.min(5, meta.totalPages) }, (_, i) => {
+                const half = 2;
+                let start = Math.max(1, page - half);
+                const end = Math.min(meta.totalPages, start + 4);
+                start = Math.max(1, end - 4);
+                return start + i;
+              }).map((p) => (
+                <button
+                  key={p}
+                  onClick={() => goToPage(p)}
+                  className={`min-w-[32px] h-8 rounded-lg text-sm font-medium transition ${
+                    p === page
+                      ? 'bg-brand-500 text-white'
+                      : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+                  }`}
+                >
+                  {p}
+                </button>
+              ))}
+              <Button size="sm" variant="outline" onClick={() => goToPage(page + 1)} disabled={page >= meta.totalPages}>
                 Siguiente →
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => goToPage(meta.totalPages)} disabled={page >= meta.totalPages}>
+                »
               </Button>
             </div>
           </div>
@@ -447,33 +470,74 @@ export default function DigemidPage() {
           Detalle del Producto
         </h4>
         {detailProduct && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
-            {(
-              [
-                ['ID', String(detailProduct.id)],
-                ['Código de Producto', detailProduct.codigoProducto],
-                ['Nombre del Producto', detailProduct.nombreProducto],
-                ['Concentración', detailProduct.concentracion],
-                ['Forma Farmacéutica', detailProduct.formaFarmaceutica],
-                ['Presentación', detailProduct.presentacion],
-                ['Fracción', detailProduct.fraccion],
-                ['N° Registro Sanitario', detailProduct.numeroRegistroSanitario],
-                ['Titular', detailProduct.nombreTitular],
-                ['Fabricante', detailProduct.nombreFabricante],
-                ['Nombre IFA', detailProduct.nombreIFA],
-                ['Rubro', detailProduct.nombreRubro],
-                ['Situación', detailProduct.situacion],
-              ] as [string, string][]
-            ).map(([label, value]) => (
-              <div key={label}>
-                <p className="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-0.5">
-                  {label}
-                </p>
-                <p className="text-sm text-gray-800 dark:text-white/90 break-words">
-                  {value || '—'}
-                </p>
+          <div className="space-y-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
+              {(
+                [
+                  ['ID', String(detailProduct.id)],
+                  ['Código de Producto', detailProduct.codigoProducto],
+                  ['Nombre del Producto', detailProduct.nombreProducto],
+                  ['Concentración', detailProduct.concentracion],
+                  ['Forma Farmacéutica', detailProduct.formaFarmaceutica],
+                  ['Presentación', detailProduct.presentacion],
+                  ['Fracción', detailProduct.fraccion],
+                  ['N° Registro Sanitario', detailProduct.numeroRegistroSanitario],
+                  ['Titular', detailProduct.nombreTitular],
+                  ['Fabricante', detailProduct.nombreFabricante],
+                  ['Nombre IFA', detailProduct.nombreIFA],
+                  ['Rubro', detailProduct.nombreRubro],
+                  ['Situación', detailProduct.situacion],
+                ] as [string, string][]
+              ).map(([label, value]) => (
+                <div key={label}>
+                  <p className="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-0.5">
+                    {label}
+                  </p>
+                  <p className="text-sm text-gray-800 dark:text-white/90 break-words">
+                    {value || '—'}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            <hr className="border-gray-100 dark:border-gray-800" />
+
+            {/* Audit info */}
+            <div>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Seguimiento</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-100 dark:bg-brand-900">
+                    <span className="text-sm font-bold text-brand-600 dark:text-brand-300">
+                      {detailProduct.user?.fullName?.charAt(0).toUpperCase() ?? '?'}
+                    </span>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400 dark:text-gray-500">Registrado por</p>
+                    <p className="text-sm font-medium text-gray-800 dark:text-white/90 capitalize">
+                      {detailProduct.user?.fullName ?? '—'}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">{detailProduct.user?.role ?? ''}</p>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400 dark:text-gray-500">Fecha de creación</p>
+                  <p className="text-sm text-gray-800 dark:text-white/90">
+                    {detailProduct.createdAt
+                      ? new Date(detailProduct.createdAt).toLocaleString('es-PE')
+                      : '—'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400 dark:text-gray-500">Última actualización</p>
+                  <p className="text-sm text-gray-800 dark:text-white/90">
+                    {detailProduct.updatedAt
+                      ? new Date(detailProduct.updatedAt).toLocaleString('es-PE')
+                      : '—'}
+                  </p>
+                </div>
               </div>
-            ))}
+            </div>
           </div>
         )}
         <div className="flex justify-end mt-6">

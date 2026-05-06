@@ -10,6 +10,7 @@ import Button from '../../components/ui/button/Button';
 import { Modal } from '../../components/ui/modal';
 import ConfirmModal from '../../components/crud/ConfirmModal';
 import { PencilIcon, TrashBinIcon } from '../../icons';
+import CanAccess from '../../components/auth/CanAccess';
 
 const DOC_TYPES = ['DNI', 'PASSPORT', 'RUC'] as const;
 
@@ -168,12 +169,16 @@ export default function PeoplePage() {
       header: 'Acciones',
       render: (p) => (
         <div className="flex items-center gap-1">
-          <button onClick={() => openEdit(p)} className="p-1.5 text-gray-500 hover:text-brand-500 transition" title="Editar">
-            <PencilIcon className="w-4 h-4" />
-          </button>
-          <button onClick={() => openDelete(p)} className="p-1.5 text-gray-500 hover:text-red-500 transition" title="Eliminar">
-            <TrashBinIcon className="w-4 h-4" />
-          </button>
+          <CanAccess roles={['ADMIN', 'SOPORTE']}>
+            <button onClick={() => openEdit(p)} className="p-1.5 text-gray-500 hover:text-brand-500 transition" title="Editar">
+              <PencilIcon className="w-4 h-4" />
+            </button>
+          </CanAccess>
+          <CanAccess roles={['ADMIN']}>
+            <button onClick={() => openDelete(p)} className="p-1.5 text-gray-500 hover:text-red-500 transition" title="Eliminar">
+              <TrashBinIcon className="w-4 h-4" />
+            </button>
+          </CanAccess>
         </div>
       ),
     },
