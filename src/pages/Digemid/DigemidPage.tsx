@@ -477,6 +477,7 @@ export default function DigemidPage() {
                   ['ID', String(detailProduct.id)],
                   ['Código de Producto', detailProduct.codigoProducto],
                   ['Nombre del Producto', detailProduct.nombreProducto],
+                  ['Nombre Completo', detailProduct.nombreConcatenado],
                   ['Concentración', detailProduct.concentracion],
                   ['Forma Farmacéutica', detailProduct.formaFarmaceutica],
                   ['Presentación', detailProduct.presentacion],

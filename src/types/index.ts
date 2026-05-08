@@ -103,6 +103,7 @@ export interface DigemidProduct {
   id: number;
   codigoProducto: string;
   nombreProducto: string;
+  nombreConcatenado: string;
   concentracion: string;
   formaFarmaceutica: string;
   presentacion: string;
@@ -134,6 +135,7 @@ export interface DigemidPaginatedResponse {
 export interface UpdateDigemidDto {
   codigoProducto?: string;
   nombreProducto?: string;
+  nombreConcatenado?: string;
   concentracion?: string;
   formaFarmaceutica?: string;
   presentacion?: string;
