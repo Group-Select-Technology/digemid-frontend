@@ -9,7 +9,7 @@ import DataTable, { type Column } from '../../components/crud/DataTable';
 import Button from '../../components/ui/button/Button';
 import { Modal } from '../../components/ui/modal';
 import ConfirmModal from '../../components/crud/ConfirmModal';
-import { PencilIcon, TrashBinIcon } from '../../icons';
+import { PencilIcon } from '../../icons';
 import CanAccess from '../../components/auth/CanAccess';
 
 const DOC_TYPES = ['DNI', 'PASSPORT', 'RUC'] as const;
@@ -35,7 +35,7 @@ export default function PeoplePage() {
 
   // Delete modal
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [targetPerson, setTargetPerson] = useState<Person | null>(null);
+  const [targetPerson] = useState<Person | null>(null);
   const [deleting, setDeleting] = useState(false);
 
   const fetchPeople = async () => {
@@ -112,10 +112,6 @@ export default function PeoplePage() {
     }
   };
 
-  const openDelete = (person: Person) => {
-    setTargetPerson(person);
-    setDeleteOpen(true);
-  };
 
   const handleDelete = async () => {
     if (!targetPerson) return;
