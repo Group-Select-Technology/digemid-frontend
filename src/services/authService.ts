@@ -19,7 +19,17 @@ export interface UserProfile {
   };
 }
 
+export interface ChangePasswordDto {
+  currentPassword: string;
+  newPassword: string;
+}
+
 export async function getProfile(): Promise<UserProfile> {
   const { data } = await api.get<UserProfile>('/auth/profile');
+  return data;
+}
+
+export async function changePassword(payload: ChangePasswordDto): Promise<{ message: string }> {
+  const { data } = await api.patch<{ message: string }>('/auth/change-password', payload);
   return data;
 }

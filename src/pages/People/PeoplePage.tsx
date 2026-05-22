@@ -174,11 +174,6 @@ export default function PeoplePage() {
               <PencilIcon className="w-4 h-4" />
             </button>
           </CanAccess>
-          <CanAccess roles={['ADMIN']}>
-            <button onClick={() => openDelete(p)} className="p-1.5 text-gray-500 hover:text-red-500 transition" title="Eliminar">
-              <TrashBinIcon className="w-4 h-4" />
-            </button>
-          </CanAccess>
         </div>
       ),
     },
