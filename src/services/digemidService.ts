@@ -1,12 +1,18 @@
 import api from './api';
-import type { DigemidProduct, DigemidPaginatedResponse, UpdateDigemidDto, PaginationParams } from '../types';
+import type {
+  DigemidProduct,
+  DigemidProductDetail,
+  DigemidPaginatedResponse,
+  UpdateDigemidDto,
+  PaginationParams,
+} from '../types';
 
 export const digemidService = {
   getAll: (params?: PaginationParams) =>
     api.get<DigemidPaginatedResponse>('/digemid', { params }).then((r) => r.data),
 
   getOne: (term: string | number) =>
-    api.get<DigemidProduct>(`/digemid/${term}`).then((r) => r.data),
+    api.get<DigemidProductDetail>(`/digemid/${term}`).then((r) => r.data),
 
   update: (id: number, dto: UpdateDigemidDto) =>
     api.patch<DigemidProduct>(`/digemid/${id}`, dto).then((r) => r.data),

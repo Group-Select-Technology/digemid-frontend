@@ -68,7 +68,7 @@ export default function DataTable<T>({
               <th
                 key={col.header}
                 onClick={col.sortValue ? () => handleSort(col.header) : undefined}
-                className={`px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400 capitalize ${
+                className={`px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400 capitalize uppercase ${
                   col.sortValue
                     ? 'cursor-pointer select-none hover:text-gray-700 dark:hover:text-gray-200 transition-colors'
                     : ''

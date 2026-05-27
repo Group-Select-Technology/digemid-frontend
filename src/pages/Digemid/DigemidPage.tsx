@@ -14,6 +14,8 @@ import { EyeIcon, PencilIcon, TrashBinIcon } from '../../icons';
 
 const PAGE_SIZE = 10;
 
+const displayNullableField = (value: string | null | undefined) => value ?? 'Sin Datos';
+
 export default function DigemidPage() {
   const [products, setProducts] = useState<DigemidProduct[]>([]);
   const [meta, setMeta] = useState<DigemidPaginationMeta | null>(null);
@@ -273,13 +275,6 @@ export default function DigemidPage() {
       ),
     },
     {
-      header: 'Forma Farm.',
-      sortValue: (p) => p.formaFarmaceutica,
-      render: (p) => (
-        <span className="text-sm text-gray-600 dark:text-gray-400">{p.formaFarmaceutica}</span>
-      ),
-    },
-    {
       header: 'Reg. Sanitario',
       sortValue: (p) => p.numeroRegistroSanitario,
       render: (p) => (
@@ -312,6 +307,36 @@ export default function DigemidPage() {
           </span>
         );
       },
+    },
+    {
+      header: 'Patología',
+      sortValue: (p) => p.patologia ?? '',
+      render: (p) => (
+        <span className="text-sm text-gray-600 dark:text-gray-400">
+          {displayNullableField(p.patologia)}
+        </span>
+      ),
+    },
+    {
+      header: 'Categoría',
+      sortValue: (p) => p.categoria ?? '',
+      render: (p) => (
+        <span className="text-sm text-gray-600 dark:text-gray-400">
+          {displayNullableField(p.categoria)}
+        </span>
+      ),
+    },
+    {
+      header: 'Para que sirve',
+      sortValue: (p) => p.indicaciones ?? '',
+      render: (p) => (
+        <span
+          className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 max-w-xs"
+          title={p.indicaciones ?? undefined}
+        >
+          {displayNullableField(p.indicaciones)}
+        </span>
+      ),
     },
     {
       header: 'Acciones',
@@ -488,9 +513,12 @@ export default function DigemidPage() {
                   ['Nombre IFA', detailProduct.nombreIFA],
                   ['Rubro', detailProduct.nombreRubro],
                   ['Situación', detailProduct.situacion],
+                  ['Patología', displayNullableField(detailProduct.patologia)],
+                  ['Categoría', displayNullableField(detailProduct.categoria)],
+                  ['Indicaciones', displayNullableField(detailProduct.indicaciones)],
                 ] as [string, string][]
               ).map(([label, value]) => (
-                <div key={label}>
+                <div key={label} className={label === 'Indicaciones' ? 'sm:col-span-2' : undefined}>
                   <p className="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-0.5">
                     {label}
                   </p>
@@ -516,9 +544,11 @@ export default function DigemidPage() {
                   <div>
                     <p className="text-xs text-gray-400 dark:text-gray-500">Registrado por</p>
                     <p className="text-sm font-medium text-gray-800 dark:text-white/90 capitalize">
-                      {detailProduct.user?.fullName ?? '—'}
+                      {detailProduct.user?.fullName ?? 'sin datos'}
                     </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">{detailProduct.user?.role ?? ''}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">
+                      {detailProduct.user?.role ?? ''}
+                    </p>
                   </div>
                 </div>
                 <div>

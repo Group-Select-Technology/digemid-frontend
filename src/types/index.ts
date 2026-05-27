@@ -114,10 +114,15 @@ export interface DigemidProduct {
   nombreIFA: string;
   nombreRubro: string;
   situacion: string;
+  patologia: string | null;
+  categoria: string | null;
+  indicaciones: string | null;
   createdAt: string;
   updatedAt: string;
-  user: DigemidProductUser;
+  user?: DigemidProductUser;
 }
+
+export type DigemidProductDetail = Omit<DigemidProduct, 'user'>;
 
 export interface DigemidPaginationMeta {
   totalItems: number;
