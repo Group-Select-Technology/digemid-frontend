@@ -1,24 +1,38 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link, useLocation } from "react-router";
 
-// Assume these icons are imported from an icon library
 import {
     GridIcon,
     ChevronDownIcon,
     HorizontaLDots,
-    TableIcon,
+    DollarLineIcon,
 } from "../icons";
 import { useSidebar } from "../context/SidebarContext";
 import { useAuth } from "../context/AuthContext";
 import type { RoleCode } from "../types";
-// import SidebarWidget from "./SidebarWidget";
+import {
+    BeakerIcon,
+    IdentificationIcon,
+    ShieldCheckIcon,
+    UserIcon,
+    UsersIcon,
+} from "@heroicons/react/24/outline";
+
+type NavSubItem = {
+    name: string;
+    path: string;
+    icon?: ReactNode;
+    roles?: RoleCode[];
+    pro?: boolean;
+    new?: boolean;
+};
 
 type NavItem = {
     name: string;
-    icon: React.ReactNode;
+    icon: ReactNode;
     path?: string;
     roles?: RoleCode[];
-    subItems?: { name: string; path: string; roles?: RoleCode[]; pro?: boolean; new?: boolean }[];
+    subItems?: NavSubItem[];
 };
 
 const navItems: NavItem[] = [
@@ -28,18 +42,38 @@ const navItems: NavItem[] = [
         path: "/",
     },
     {
-        icon: <TableIcon />,
+        icon: <BeakerIcon className="w-5 h-5" />,
         name: "DIGEMID",
         path: "/digemid",
     },
     {
-        icon: <TableIcon />,
+        icon: <DollarLineIcon />,
+        name: "Cobranzas",
+        path: "/cobranzas",
+        roles: ["ADMIN", "DESARROLLO"],
+    },
+    {
+        icon: <UsersIcon className="w-5 h-5" />,
         name: "Gestión de Usuarios",
-        roles: ["ADMIN", "SOPORTE"],
         subItems: [
-            { name: "Roles", path: "/roles", roles: ["ADMIN"] },
-            { name: "Usuarios", path: "/usuarios", roles: ["ADMIN"] },
-            { name: "Personas", path: "/personas", roles: ["ADMIN", "SOPORTE"] },
+            {
+                icon: <ShieldCheckIcon className="w-4 h-4" />,
+                name: "Roles",
+                path: "/roles",
+                roles: ["ADMIN"],
+            },
+            {
+                icon: <UserIcon className="w-4 h-4" />,
+                name: "Usuarios",
+                path: "/usuarios",
+                roles: ["ADMIN"],
+            },
+            {
+                icon: <IdentificationIcon className="w-4 h-4" />,
+                name: "Personas",
+                path: "/personas",
+                roles: ["ADMIN", "DESARROLLO"],
+            },
         ],
     },
 ];
@@ -57,12 +91,16 @@ const AppSidebar: React.FC = () => {
             return !!user && roles.includes(user.roleCode);
         };
         return navItems
-            .filter((item) => canSeeItem(item.roles))
             .map((item) => ({
                 ...item,
                 subItems: item.subItems?.filter((sub) => canSeeItem(sub.roles)),
             }))
-            .filter((item) => !item.subItems || item.subItems.length > 0);
+            .filter((item) => {
+                if (item.subItems) {
+                    return item.subItems.length > 0;
+                }
+                return canSeeItem(item.roles);
+            });
     }, [user]);
 
     const [openSubmenu, setOpenSubmenu] = useState<{
@@ -209,7 +247,10 @@ const AppSidebar: React.FC = () => {
                                                     : "menu-dropdown-item-inactive"
                                                 }`}
                                         >
-                                            {subItem.name}
+                                            {subItem.icon && (
+                                                <span className="shrink-0">{subItem.icon}</span>
+                                            )}
+                                            <span className="flex-1">{subItem.name}</span>
                                             <span className="flex items-center gap-1 ml-auto">
                                                 {subItem.new && (
                                                     <span

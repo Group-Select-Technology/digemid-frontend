@@ -5,8 +5,10 @@ import { useSidebar } from "../context/SidebarContext";
 import { ThemeToggleButton } from "../components/common/ThemeToggleButton";
 // import NotificationDropdown from "../components/header/NotificationDropdown";
 import UserDropdown from "../components/header/UserDropdown";
-import { GridIcon, TableIcon } from "../icons";
+import { GridIcon, TableIcon, DollarLineIcon } from "../icons";
 import type { ReactNode } from "react";
+import { useAuth } from "../context/AuthContext";
+import type { RoleCode } from "../types";
 
 interface NavEntry {
   label: string;
@@ -14,6 +16,7 @@ interface NavEntry {
   path: string;
   keywords: string[];
   icon: ReactNode;
+  roles?: RoleCode[];
 }
 
 const NAV_ENTRIES: NavEntry[] = [
@@ -32,11 +35,20 @@ const NAV_ENTRIES: NavEntry[] = [
     icon: <TableIcon className="w-4 h-4" />,
   },
   {
+    label: "Cobranzas",
+    description: "Imágenes de vouchers de cobranzas",
+    path: "/cobranzas",
+    keywords: ["cobranzas", "vouchers", "imagenes", "pagos", "plin", "assets"],
+    icon: <DollarLineIcon className="w-4 h-4" />,
+    roles: ["ADMIN", "DESARROLLO"],
+  },
+  {
     label: "Roles",
     description: "Gestión de roles del sistema",
     path: "/roles",
     keywords: ["roles", "rol", "permisos", "acceso"],
     icon: <TableIcon className="w-4 h-4" />,
+    roles: ["ADMIN"],
   },
   {
     label: "Usuarios",
@@ -44,6 +56,7 @@ const NAV_ENTRIES: NavEntry[] = [
     path: "/usuarios",
     keywords: ["usuarios", "usuario", "user", "users", "cuentas"],
     icon: <TableIcon className="w-4 h-4" />,
+    roles: ["ADMIN"],
   },
   {
     label: "Personas",
@@ -51,6 +64,7 @@ const NAV_ENTRIES: NavEntry[] = [
     path: "/personas",
     keywords: ["personas", "persona", "people", "contactos"],
     icon: <TableIcon className="w-4 h-4" />,
+    roles: ["ADMIN", "DESARROLLO"],
   },
 ];
 
@@ -58,6 +72,7 @@ const AppHeader: React.FC = () => {
   const [isApplicationMenuOpen, setApplicationMenuOpen] = useState(false);
 
   const { isMobileOpen, toggleSidebar, toggleMobileSidebar } = useSidebar();
+  const { user } = useAuth();
   const navigate = useNavigate();
 
   const handleToggle = () => {
@@ -80,8 +95,13 @@ const AppHeader: React.FC = () => {
   const [activeIndex, setActiveIndex] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
 
+  const visibleNavEntries = NAV_ENTRIES.filter((entry) => {
+    if (!entry.roles || entry.roles.length === 0) return true;
+    return !!user && entry.roles.includes(user.roleCode);
+  });
+
   const results = query.trim()
-    ? NAV_ENTRIES.filter((e) => {
+    ? visibleNavEntries.filter((e) => {
         const q = query.toLowerCase();
         return (
           e.label.toLowerCase().includes(q) ||
@@ -89,7 +109,7 @@ const AppHeader: React.FC = () => {
           e.keywords.some((k) => k.includes(q))
         );
       })
-    : NAV_ENTRIES;
+    : visibleNavEntries;
 
   const goTo = (path: string) => {
     navigate(path);
@@ -195,13 +215,13 @@ const AppHeader: React.FC = () => {
 
           <Link to="/" className="lg:hidden">
             <img
-              className="dark:hidden"
-              src="./images/logo/logo.svg"
+              className="dark:hidden w-45"
+              src="/images/logo/logo_select_full.png"
               alt="Logo"
             />
             <img
-              className="hidden dark:block"
-              src="./images/logo/logo-dark.svg"
+              className="hidden dark:block w-45"
+              src="/images/logo/logo_select_full.png"
               alt="Logo"
             />
           </Link>

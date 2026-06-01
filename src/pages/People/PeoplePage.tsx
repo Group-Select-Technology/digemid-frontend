@@ -165,7 +165,7 @@ export default function PeoplePage() {
       header: 'Acciones',
       render: (p) => (
         <div className="flex items-center gap-1">
-          <CanAccess roles={['ADMIN', 'SOPORTE']}>
+          <CanAccess roles={['ADMIN']}>
             <button onClick={() => openEdit(p)} className="p-1.5 text-gray-500 hover:text-brand-500 transition" title="Editar">
               <PencilIcon className="w-4 h-4" />
             </button>

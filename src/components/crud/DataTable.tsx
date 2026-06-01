@@ -16,6 +16,7 @@ interface DataTableProps<T> {
   error?: string | null;
   emptyMessage?: string;
   keyExtractor: (row: T) => string | number;
+  tableClassName?: string;
 }
 
 export default function DataTable<T>({
@@ -25,6 +26,7 @@ export default function DataTable<T>({
   error = null,
   emptyMessage = 'No hay registros.',
   keyExtractor,
+  tableClassName,
 }: DataTableProps<T>) {
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
@@ -61,7 +63,7 @@ export default function DataTable<T>({
 
   return (
     <div className="max-w-full overflow-x-auto">
-      <Table>
+      <Table className={tableClassName}>
         <TableHeader className="border-b border-gray-100 dark:border-white/[0.05]">
           <TableRow>
             {columns.map((col) => (

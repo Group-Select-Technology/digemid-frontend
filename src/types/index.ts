@@ -152,3 +152,30 @@ export interface UpdateDigemidDto {
   nombreRubro?: string;
   situacion?: string;
 }
+
+// ---- Assets / Cobranzas ----
+export type AssetStatus = 'ACTIVE' | 'INACTIVE';
+
+export interface Asset {
+  id: string;
+  reference: string;
+  filename: string;
+  originalName: string;
+  folder: string;
+  mimeType: string;
+  sizeBytes: number;
+  sourceApp: string;
+  cloudfrontUrl: string;
+  status: AssetStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AssetsPaginationParams extends PaginationParams {
+  folder?: string;
+}
+
+export interface AssetsPaginatedResponse {
+  data: Asset[];
+  meta: DigemidPaginationMeta;
+}

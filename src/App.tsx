@@ -8,9 +8,12 @@ import RolesPage from "./pages/Roles/RolesPage";
 import UsersPage from "./pages/Users/UsersPage";
 import PeoplePage from "./pages/People/PeoplePage";
 import DigemidPage from "./pages/Digemid/DigemidPage";
+import CobranzasPage from "./pages/Cobranzas/CobranzasPage";
+import Forbidden from "./pages/OtherPage/Forbidden";
 import ProfilePage from "./pages/Profile/ProfilePage";
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
+import RoleRoute from "./components/auth/RoleRoute";
 import PublicRoute from "./components/auth/PublicRoute";
 
 export default function App() {
@@ -27,10 +30,21 @@ export default function App() {
                             {/* DIGEMID */}
                             <Route path="/digemid" element={<DigemidPage />} />
 
-                            {/* Gestión */}
-                            <Route path="/roles" element={<RolesPage />} />
-                            <Route path="/usuarios" element={<UsersPage />} />
-                            <Route path="/personas" element={<PeoplePage />} />
+                            {/* Cobranzas — solo ADMIN y DESARROLLO */}
+                            <Route element={<RoleRoute roles={['ADMIN', 'DESARROLLO']} />}>
+                                <Route path="/cobranzas" element={<CobranzasPage />} />
+                            </Route>
+
+                            {/* Gestión — protegido por rol */}
+                            <Route element={<RoleRoute roles={['ADMIN']} />}>
+                                <Route path="/roles" element={<RolesPage />} />
+                                <Route path="/usuarios" element={<UsersPage />} />
+                            </Route>
+                            <Route element={<RoleRoute roles={['ADMIN', 'DESARROLLO']} />}>
+                                <Route path="/personas" element={<PeoplePage />} />
+                            </Route>
+
+                            <Route path="/403" element={<Forbidden />} />
 
                             {/* Perfil */}
                             <Route path="/profile" element={<ProfilePage />} />

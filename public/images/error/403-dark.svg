@@ -1,0 +1,20 @@
+<svg width="472" height="158" viewBox="0 0 472 158" fill="none" xmlns="http://www.w3.org/2000/svg">
+<!-- 4 -->
+<rect x="0.0405273" y="0.522461" width="32.6255" height="77.5957" rx="6.26271" fill="#7592FF" stroke="#7592FF" stroke-width="0.752667"/>
+<rect x="75.8726" y="3.16797" width="32.6255" height="154.31" rx="6.26271" fill="#7592FF" stroke="#7592FF" stroke-width="0.752667"/>
+<rect x="16.7939" y="91.3438" width="32.6255" height="77.5957" rx="6.26271" transform="rotate(-90 16.7939 91.3438)" fill="#7592FF" stroke="#7592FF" stroke-width="0.752667"/>
+<!-- 0 -->
+<rect x="152.769" y="15.167" width="166.462" height="130.311" rx="28" stroke="#7592FF" stroke-width="24"/>
+<!-- lock shackle -->
+<path d="M214.5 82V58.5C214.5 47.9543 223.454 39 234 39C244.546 39 253.5 47.9543 253.5 58.5V82" stroke="#7592FF" stroke-width="12" stroke-linecap="round"/>
+<!-- lock body -->
+<rect x="208.5" y="82" width="51" height="42" rx="5" fill="#7592FF"/>
+<!-- keyhole -->
+<rect x="230.5" y="94" width="7" height="14" rx="2" fill="#1f2937"/>
+<circle cx="234" cy="91" r="4" fill="#1f2937"/>
+<!-- 3 -->
+<rect x="439.334" y="3.16797" width="32.6255" height="154.31" rx="6.26271" fill="#7592FF" stroke="#7592FF" stroke-width="0.752667"/>
+<rect x="363.502" y="0.522461" width="76.457" height="32.6255" rx="6.26271" fill="#7592FF" stroke="#7592FF" stroke-width="0.752667"/>
+<rect x="392.255" y="62.527" width="79.704" height="32.6255" rx="6.26271" fill="#7592FF" stroke="#7592FF" stroke-width="0.752667"/>
+<rect x="363.502" y="125.532" width="76.457" height="32.6255" rx="6.26271" fill="#7592FF" stroke="#7592FF" stroke-width="0.752667"/>
+</svg>
