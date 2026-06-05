@@ -13,6 +13,7 @@ import type { RoleCode } from "../types";
 import {
     BeakerIcon,
     IdentificationIcon,
+    PhotoIcon,
     ShieldCheckIcon,
     UserIcon,
     UsersIcon,
@@ -47,10 +48,16 @@ const navItems: NavItem[] = [
         path: "/digemid",
     },
     {
+        icon: <PhotoIcon className="w-5 h-5" />,
+        name: "Select Punto de Venta",
+        path: "/select-punto-venta",
+        roles: ["ADMIN", "DESARROLLO", "SOPORTE"],
+    },
+    {
         icon: <DollarLineIcon />,
         name: "Cobranzas",
         path: "/cobranzas",
-        roles: ["ADMIN", "DESARROLLO"],
+        roles: ["ADMIN", "DESARROLLO", "SOPORTE"],
     },
     {
         icon: <UsersIcon className="w-5 h-5" />,

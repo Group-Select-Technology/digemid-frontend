@@ -6,6 +6,7 @@ import { ThemeToggleButton } from "../components/common/ThemeToggleButton";
 // import NotificationDropdown from "../components/header/NotificationDropdown";
 import UserDropdown from "../components/header/UserDropdown";
 import { GridIcon, TableIcon, DollarLineIcon } from "../icons";
+import { PhotoIcon } from "@heroicons/react/24/outline";
 import type { ReactNode } from "react";
 import { useAuth } from "../context/AuthContext";
 import type { RoleCode } from "../types";
@@ -35,12 +36,20 @@ const NAV_ENTRIES: NavEntry[] = [
     icon: <TableIcon className="w-4 h-4" />,
   },
   {
+    label: "Select Punto de Venta",
+    description: "Galería de imágenes de productos farmacéuticos y markets",
+    path: "/select-punto-venta",
+    keywords: ["select", "punto", "venta", "pos", "productos", "galeria", "imagenes", "farmaceutico", "markets"],
+    icon: <PhotoIcon className="w-4 h-4" />,
+    roles: ["ADMIN", "DESARROLLO", "SOPORTE"],
+  },
+  {
     label: "Cobranzas",
     description: "Imágenes de vouchers de cobranzas",
     path: "/cobranzas",
     keywords: ["cobranzas", "vouchers", "imagenes", "pagos", "plin", "assets"],
     icon: <DollarLineIcon className="w-4 h-4" />,
-    roles: ["ADMIN", "DESARROLLO"],
+    roles: ["ADMIN", "DESARROLLO", "SOPORTE"],
   },
   {
     label: "Roles",

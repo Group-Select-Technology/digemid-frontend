@@ -9,6 +9,7 @@ import UsersPage from "./pages/Users/UsersPage";
 import PeoplePage from "./pages/People/PeoplePage";
 import DigemidPage from "./pages/Digemid/DigemidPage";
 import CobranzasPage from "./pages/Cobranzas/CobranzasPage";
+import SelectPuntoVentaPage from "./pages/SelectPos/SelectPuntoVentaPage";
 import Forbidden from "./pages/OtherPage/Forbidden";
 import ProfilePage from "./pages/Profile/ProfilePage";
 import { AuthProvider } from "./context/AuthContext";
@@ -30,8 +31,9 @@ export default function App() {
                             {/* DIGEMID */}
                             <Route path="/digemid" element={<DigemidPage />} />
 
-                            {/* Cobranzas — solo ADMIN y DESARROLLO */}
-                            <Route element={<RoleRoute roles={['ADMIN', 'DESARROLLO']} />}>
+                            {/* Assets — ADMIN, DESARROLLO y SOPORTE */}
+                            <Route element={<RoleRoute roles={['ADMIN', 'DESARROLLO', 'SOPORTE']} />}>
+                                <Route path="/select-punto-venta" element={<SelectPuntoVentaPage />} />
                                 <Route path="/cobranzas" element={<CobranzasPage />} />
                             </Route>
 
