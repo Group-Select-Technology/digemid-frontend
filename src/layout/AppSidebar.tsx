@@ -13,6 +13,7 @@ import type { RoleCode } from "../types";
 import {
     BeakerIcon,
     IdentificationIcon,
+    PhotoIcon,
     ShieldCheckIcon,
     UserIcon,
     UsersIcon,
@@ -45,6 +46,12 @@ const navItems: NavItem[] = [
         icon: <BeakerIcon className="w-5 h-5" />,
         name: "DIGEMID",
         path: "/digemid",
+    },
+    {
+        icon: <PhotoIcon className="w-5 h-5" />,
+        name: "Select Punto de Venta",
+        path: "/select-punto-venta",
+        roles: ["ADMIN", "DESARROLLO", "SOPORTE"],
     },
     {
         icon: <DollarLineIcon />,
@@ -307,14 +314,14 @@ const AppSidebar: React.FC = () => {
                         <>
                             <img
                                 className="dark:hidden"
-                                src="/images/logo/logo_select_full.png"
+                                src="/images/logo/logoSelectNuevoOriginal.png"
                                 alt="Logo"
                                 width={150}
                                 height={40}
                             />
                             <img
                                 className="hidden dark:block"
-                                src="/images/logo/logo_select_full.png"
+                                src="/images/logo/logoSelectNuevoWhite.png"
                                 alt="Logo"
                                 width={150}
                                 height={40}
@@ -322,7 +329,7 @@ const AppSidebar: React.FC = () => {
                         </>
                     ) : (
                         <img
-                            src="/images/logo/logo-icon-select.png"
+                            src="/images/logo/logoSelectNuevoOriginalIcono.png"
                             alt="Logo"
                             width={32}
                             height={32}

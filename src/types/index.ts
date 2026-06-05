@@ -153,7 +153,8 @@ export interface UpdateDigemidDto {
   situacion?: string;
 }
 
-// ---- Assets / Cobranzas ----
+// ---- Assets ----
+export type AssetFolder = 'cobranzas' | 'selectpos';
 export type AssetStatus = 'ACTIVE' | 'INACTIVE';
 
 export interface Asset {
@@ -161,7 +162,7 @@ export interface Asset {
   reference: string;
   filename: string;
   originalName: string;
-  folder: string;
+  folder: string | null;
   mimeType: string;
   sizeBytes: number;
   sourceApp: string;

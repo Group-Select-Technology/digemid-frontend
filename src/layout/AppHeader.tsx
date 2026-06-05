@@ -6,6 +6,7 @@ import { ThemeToggleButton } from "../components/common/ThemeToggleButton";
 // import NotificationDropdown from "../components/header/NotificationDropdown";
 import UserDropdown from "../components/header/UserDropdown";
 import { GridIcon, TableIcon, DollarLineIcon } from "../icons";
+import { PhotoIcon } from "@heroicons/react/24/outline";
 import type { ReactNode } from "react";
 import { useAuth } from "../context/AuthContext";
 import type { RoleCode } from "../types";
@@ -33,6 +34,14 @@ const NAV_ENTRIES: NavEntry[] = [
     path: "/digemid",
     keywords: ["digemid", "productos", "medicamentos", "catalogo", "excel", "farmaceutico"],
     icon: <TableIcon className="w-4 h-4" />,
+  },
+  {
+    label: "Select Punto de Venta",
+    description: "Galería de imágenes de productos farmacéuticos y markets",
+    path: "/select-punto-venta",
+    keywords: ["select", "punto", "venta", "pos", "productos", "galeria", "imagenes", "farmaceutico", "markets"],
+    icon: <PhotoIcon className="w-4 h-4" />,
+    roles: ["ADMIN", "DESARROLLO", "SOPORTE"],
   },
   {
     label: "Cobranzas",
@@ -216,12 +225,12 @@ const AppHeader: React.FC = () => {
           <Link to="/" className="lg:hidden">
             <img
               className="dark:hidden w-45"
-              src="/images/logo/logo_select_full.png"
+              src="/images/logo/logoSelectNuevoOriginal.png"
               alt="Logo"
             />
             <img
               className="hidden dark:block w-45"
-              src="/images/logo/logo_select_full.png"
+              src="/images/logo/logoSelectNuevoWhite.png"
               alt="Logo"
             />
           </Link>
