@@ -18,4 +18,7 @@ export const assetsService = {
       })
       .then((r) => r.data);
   },
+
+  removeSelectPos: (id: string) =>
+    api.delete(`/assets/select-pos/${id}`).then((r) => r.data),
 };

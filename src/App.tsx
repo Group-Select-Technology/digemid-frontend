@@ -31,9 +31,10 @@ export default function App() {
                             {/* DIGEMID */}
                             <Route path="/digemid" element={<DigemidPage />} />
 
-                            {/* Assets — ADMIN, DESARROLLO y SOPORTE */}
                             <Route element={<RoleRoute roles={['ADMIN', 'DESARROLLO', 'SOPORTE']} />}>
                                 <Route path="/select-punto-venta" element={<SelectPuntoVentaPage />} />
+                            </Route>
+                            <Route element={<RoleRoute roles={['ADMIN', 'DESARROLLO']} />}>
                                 <Route path="/cobranzas" element={<CobranzasPage />} />
                             </Route>
 

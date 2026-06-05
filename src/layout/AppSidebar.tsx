@@ -57,7 +57,7 @@ const navItems: NavItem[] = [
         icon: <DollarLineIcon />,
         name: "Cobranzas",
         path: "/cobranzas",
-        roles: ["ADMIN", "DESARROLLO", "SOPORTE"],
+        roles: ["ADMIN", "DESARROLLO"],
     },
     {
         icon: <UsersIcon className="w-5 h-5" />,
@@ -314,14 +314,14 @@ const AppSidebar: React.FC = () => {
                         <>
                             <img
                                 className="dark:hidden"
-                                src="/images/logo/logo_select_full.png"
+                                src="/images/logo/logoSelectNuevoOriginal.png"
                                 alt="Logo"
                                 width={150}
                                 height={40}
                             />
                             <img
                                 className="hidden dark:block"
-                                src="/images/logo/logo_select_full.png"
+                                src="/images/logo/logoSelectNuevoWhite.png"
                                 alt="Logo"
                                 width={150}
                                 height={40}
@@ -329,7 +329,7 @@ const AppSidebar: React.FC = () => {
                         </>
                     ) : (
                         <img
-                            src="/images/logo/logo-icon-select.png"
+                            src="/images/logo/logoSelectNuevoOriginalIcono.png"
                             alt="Logo"
                             width={32}
                             height={32}

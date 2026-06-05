@@ -49,7 +49,7 @@ const NAV_ENTRIES: NavEntry[] = [
     path: "/cobranzas",
     keywords: ["cobranzas", "vouchers", "imagenes", "pagos", "plin", "assets"],
     icon: <DollarLineIcon className="w-4 h-4" />,
-    roles: ["ADMIN", "DESARROLLO", "SOPORTE"],
+    roles: ["ADMIN", "DESARROLLO"],
   },
   {
     label: "Roles",
@@ -225,12 +225,12 @@ const AppHeader: React.FC = () => {
           <Link to="/" className="lg:hidden">
             <img
               className="dark:hidden w-45"
-              src="/images/logo/logo_select_full.png"
+              src="/images/logo/logoSelectNuevoOriginal.png"
               alt="Logo"
             />
             <img
               className="hidden dark:block w-45"
-              src="/images/logo/logo_select_full.png"
+              src="/images/logo/logoSelectNuevoWhite.png"
               alt="Logo"
             />
           </Link>

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useDropzone } from 'react-dropzone';
 import toast from 'react-hot-toast';
 import { assetsService } from '../../services/assetsService';
 import type { Asset, DigemidPaginationMeta } from '../../types';
@@ -6,9 +7,10 @@ import { extractApiError } from '../../utils/apiError';
 import PageBreadCrumb from '../../components/common/PageBreadCrumb';
 import PageMeta from '../../components/common/PageMeta';
 import DataTable, { type Column } from '../../components/crud/DataTable';
+import ConfirmModal from '../../components/crud/ConfirmModal';
 import Button from '../../components/ui/button/Button';
 import { Modal } from '../../components/ui/modal';
-import { EyeIcon } from '../../icons';
+import { EyeIcon, TrashBinIcon } from '../../icons';
 import type { AssetsGalleryConfig } from './assetsGalleryConfig';
 
 const PAGE_SIZE = 10;
@@ -56,6 +58,10 @@ export default function AssetsGalleryPage({ config }: AssetsGalleryPageProps) {
   const [uploadFilename, setUploadFilename] = useState('');
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [targetAsset, setTargetAsset] = useState<Asset | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const displayData = searchResults ?? assets;
 
@@ -162,20 +168,47 @@ export default function AssetsGalleryPage({ config }: AssetsGalleryPageProps) {
     setUploadError(null);
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const applyUploadFile = useCallback((file: File) => {
     if (!file.type.startsWith('image/')) {
       setUploadError('Solo se permiten archivos de imagen.');
       return;
     }
     setUploadFile(file);
     setUploadError(null);
-    if (!uploadFilename.trim()) {
-      const baseName = file.name.replace(/\.[^.]+$/, '');
-      setUploadFilename(baseName);
-    }
+  }, []);
+
+  const onDrop = useCallback(
+    (acceptedFiles: File[]) => {
+      if (acceptedFiles.length > 0) {
+        applyUploadFile(acceptedFiles[0]);
+      }
+    },
+    [applyUploadFile],
+  );
+
+  const clearSelectedFile = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setUploadFile(null);
+    setUploadError(null);
   };
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    disabled: uploading,
+    accept: { 'image/*': [] },
+    multiple: false,
+    maxFiles: 1,
+    onDropRejected: (rejections) => {
+      const code = rejections[0]?.errors[0]?.code;
+      if (code === 'too-many-files') {
+        setUploadError('Solo se permite una imagen por subida.');
+      } else if (code === 'file-invalid-type') {
+        setUploadError('Solo se permiten archivos de imagen.');
+      } else {
+        setUploadError('Archivo no válido.');
+      }
+    },
+  });
 
   const handleUpload = async () => {
     if (!uploadFile || !uploadFilename.trim()) return;
@@ -194,6 +227,27 @@ export default function AssetsGalleryPage({ config }: AssetsGalleryPageProps) {
       toast.error(msg);
     } finally {
       setUploading(false);
+    }
+  };
+
+  const openDelete = (asset: Asset) => {
+    setTargetAsset(asset);
+    setDeleteOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!targetAsset) return;
+    setDeleting(true);
+    try {
+      await assetsService.removeSelectPos(targetAsset.id);
+      toast.success('Imagen eliminada correctamente.');
+      setDeleteOpen(false);
+      clearSearch();
+      fetchAssets(page);
+    } catch (err) {
+      toast.error(extractApiError(err) ?? 'Error al eliminar la imagen.');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -261,9 +315,9 @@ export default function AssetsGalleryPage({ config }: AssetsGalleryPageProps) {
     },
     {
       header: 'Acciones',
-      className: 'w-[72px] text-center',
+      className: config.showDelete ? 'w-[100px] text-center' : 'w-[72px] text-center',
       render: (a) => (
-        <div className="flex justify-center">
+        <div className="flex items-center justify-center gap-1">
           <button
             onClick={() => openDetail(a)}
             title="Ver detalle"
@@ -271,6 +325,15 @@ export default function AssetsGalleryPage({ config }: AssetsGalleryPageProps) {
           >
             <EyeIcon className="w-4 h-4" />
           </button>
+          {config.showDelete && (
+            <button
+              onClick={() => openDelete(a)}
+              title="Eliminar"
+              className="p-1.5 text-gray-500 hover:text-red-500 transition rounded"
+            >
+              <TrashBinIcon className="w-4 h-4" />
+            </button>
+          )}
         </div>
       ),
     },
@@ -330,13 +393,24 @@ export default function AssetsGalleryPage({ config }: AssetsGalleryPageProps) {
               {formatBytes(asset.sizeBytes)} · {formatDate(asset.createdAt)}
             </p>
           </div>
-          <button
-            onClick={() => openDetail(asset)}
-            title="Ver detalle"
-            className="shrink-0 p-2 text-gray-500 hover:text-brand-500 transition rounded"
-          >
-            <EyeIcon className="w-5 h-5" />
-          </button>
+          <div className="flex shrink-0 items-center gap-1">
+            <button
+              onClick={() => openDetail(asset)}
+              title="Ver detalle"
+              className="p-2 text-gray-500 hover:text-brand-500 transition rounded"
+            >
+              <EyeIcon className="w-5 h-5" />
+            </button>
+            {config.showDelete && (
+              <button
+                onClick={() => openDelete(asset)}
+                title="Eliminar"
+                className="p-2 text-gray-500 hover:text-red-500 transition rounded"
+              >
+                <TrashBinIcon className="w-5 h-5" />
+              </button>
+            )}
+          </div>
         </div>
       ))}
     </div>
@@ -408,7 +482,7 @@ export default function AssetsGalleryPage({ config }: AssetsGalleryPageProps) {
                     setSearchTerm(e.target.value);
                     if (!e.target.value.trim()) clearSearch();
                   }}
-                  placeholder="Buscar por referencia..."
+                  placeholder="Buscar por código..."
                   className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 pl-3 pr-8 py-2 text-sm text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
                 />
                 {searchTerm && (
@@ -513,32 +587,103 @@ export default function AssetsGalleryPage({ config }: AssetsGalleryPageProps) {
           <div className="space-y-4">
             <div>
               <label className={labelClass}>Archivo de imagen</label>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleFileChange}
-                disabled={uploading}
-                className="block w-full text-sm text-gray-600 file:mr-4 file:rounded-lg file:border-0 file:bg-brand-50 file:px-4 file:py-2 file:text-sm file:font-medium file:text-brand-600 dark:text-gray-400 dark:file:bg-brand-500/10 dark:file:text-brand-400"
-              />
+              <div
+                {...getRootProps()}
+                className={`relative cursor-pointer rounded-xl border-2 border-dashed px-4 py-8 text-center transition ${
+                  isDragActive
+                    ? 'border-brand-500 bg-brand-50 dark:bg-brand-500/10'
+                    : 'border-gray-300 bg-gray-50 hover:border-brand-500 dark:border-gray-700 dark:bg-gray-900 dark:hover:border-brand-500'
+                } ${uploading ? 'pointer-events-none opacity-60' : ''}`}
+              >
+                <input {...getInputProps()} />
+                {previewUrl && uploadFile ? (
+                  <div className="flex flex-col items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={clearSelectedFile}
+                      disabled={uploading}
+                      className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-medium text-red-600 transition hover:bg-red-100 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/30"
+                    >
+                      <TrashBinIcon className="h-3.5 w-3.5" />
+                      Quitar imagen
+                    </button>
+                    <img
+                      src={previewUrl}
+                      alt="Vista previa"
+                      className="max-h-48 w-auto max-w-full object-contain rounded-lg"
+                    />
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      <span className="font-medium text-gray-700 dark:text-gray-300">
+                        {uploadFile.name}
+                      </span>
+                      {' · '}
+                      Arrastra otra imagen aquí para reemplazarla
+                    </p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gray-200 text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+                      <svg
+                        width="28"
+                        height="28"
+                        viewBox="0 0 29 28"
+                        fill="none"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          clipRule="evenodd"
+                          d="M14.5019 3.91699C14.2852 3.91699 14.0899 4.00891 13.953 4.15589L8.57363 9.53186C8.28065 9.82466 8.2805 10.2995 8.5733 10.5925C8.8661 10.8855 9.34097 10.8857 9.63396 10.5929L13.7519 6.47752V18.667C13.7519 19.0812 14.0877 19.417 14.5019 19.417C14.9161 19.417 15.2519 19.0812 15.2519 18.667V6.48234L19.3653 10.5929C19.6583 10.8857 20.1332 10.8855 20.426 10.5925C20.7188 10.2995 20.7186 9.82463 20.4256 9.53184L15.0838 4.19378C14.9463 4.02488 14.7367 3.91699 14.5019 3.91699ZM5.91626 18.667C5.91626 18.2528 5.58047 17.917 5.16626 17.917C4.75205 17.917 4.41626 18.2528 4.41626 18.667V21.8337C4.41626 23.0763 5.42362 24.0837 6.66626 24.0837H22.3339C23.5766 24.0837 24.5839 23.0763 24.5839 21.8337V18.667C24.5839 18.2528 24.2482 17.917 23.8339 17.917C23.4197 17.917 23.0839 18.2528 23.0839 18.667V21.8337C23.0839 22.2479 22.7482 22.5837 22.3339 22.5837H6.66626C6.25205 22.5837 5.91626 22.2479 5.91626 21.8337V18.667Z"
+                          fill="currentColor"
+                        />
+                      </svg>
+                    </div>
+                    {isDragActive ? (
+                      <p className="text-sm font-medium text-brand-500">Suelta la imagen aquí...</p>
+                    ) : (
+                      <>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                          <span className="font-medium text-brand-500">Haz clic para seleccionar</span>
+                          {' '}o arrastra y suelta una imagen aquí
+                        </p>
+                        <p className="text-xs text-gray-400 dark:text-gray-500">
+                          Una sola imagen por subida · JPG, PNG, WEBP, etc.
+                        </p>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
 
-            {previewUrl && (
-              <div className="flex justify-center rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800">
-                <img
-                  src={previewUrl}
-                  alt="Vista previa"
-                  className="max-h-48 w-auto object-contain rounded-lg"
-                />
-              </div>
-            )}
-
             <div>
-              <label className={labelClass}>Nombre del archivo</label>
+              <div className="mb-1 flex items-center gap-1.5">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Nombre del archivo
+                </label>
+                <span className="group relative inline-flex">
+                  <button
+                    type="button"
+                    className="flex h-4 w-4 items-center justify-center rounded-full bg-gray-200 text-[10px] font-bold leading-none text-gray-600 transition hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+                    aria-label="Ayuda sobre el nombre del archivo"
+                  >
+                    ?
+                  </button>
+                  <span
+                    role="tooltip"
+                    className="pointer-events-none invisible absolute bottom-full left-1/2 z-20 mb-2 w-64 -translate-x-1/2 rounded-lg border border-gray-200 bg-white p-2.5 text-left text-xs font-normal normal-case leading-snug text-gray-600 opacity-0 shadow-lg transition-opacity group-hover:visible group-hover:opacity-100 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                  >
+                    Ingresa el nombre del producto segun el codigo de barras de la base de datos de
+                    select o codigo digemid del producto o la union entre el numero de ruc y el codigo
+                    del producto
+                  </span>
+                </span>
+              </div>
               <input
                 type="text"
                 value={uploadFilename}
                 onChange={(e) => setUploadFilename(e.target.value)}
-                placeholder="Ej: Clindamicina"
+                placeholder="Ingresa el codigo del producto"
                 disabled={uploading}
                 className={inputClass}
               />
@@ -560,6 +705,17 @@ export default function AssetsGalleryPage({ config }: AssetsGalleryPageProps) {
             </Button>
           </div>
         </Modal>
+      )}
+
+      {config.showDelete && (
+        <ConfirmModal
+          isOpen={deleteOpen}
+          onClose={() => setDeleteOpen(false)}
+          onConfirm={handleDelete}
+          loading={deleting}
+          title="Eliminar imagen"
+          message={`¿Estás seguro de que deseas eliminar "${targetAsset?.originalName}" (${targetAsset?.reference})? Esta acción no se puede deshacer.`}
+        />
       )}
 
       <Modal isOpen={detailOpen} onClose={closeDetail} className="max-w-4xl overflow-y-auto p-4 sm:p-6">

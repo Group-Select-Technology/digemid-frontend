@@ -8,6 +8,7 @@ export interface AssetsGalleryConfig {
   emptyMessage: string;
   loadErrorMessage: string;
   showUpload: boolean;
+  showDelete: boolean;
   showFolderColumn: boolean;
 }
 
@@ -19,6 +20,7 @@ export const COBRANZAS_GALLERY_CONFIG: AssetsGalleryConfig = {
   emptyMessage: 'No hay imágenes registradas en la carpeta de cobranzas.',
   loadErrorMessage: 'Error al cargar las imágenes de cobranzas.',
   showUpload: false,
+  showDelete: false,
   showFolderColumn: true,
 };
 
@@ -30,5 +32,6 @@ export const SELECT_POS_GALLERY_CONFIG: AssetsGalleryConfig = {
   emptyMessage: 'No hay imágenes registradas en Select Punto de Venta.',
   loadErrorMessage: 'Error al cargar las imágenes de productos.',
   showUpload: true,
+  showDelete: true,
   showFolderColumn: false,
 };
