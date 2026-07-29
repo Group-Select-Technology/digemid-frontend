@@ -10,11 +10,16 @@ import {
 import { useSidebar } from "../context/SidebarContext";
 import { useAuth } from "../context/AuthContext";
 import type { RoleCode } from "../types";
+import { CORE_ROLES, GSP_VIEW_ROLES } from "../constants/roles";
 import {
     BeakerIcon,
+    BuildingStorefrontIcon,
     IdentificationIcon,
     PhotoIcon,
     ShieldCheckIcon,
+    Squares2X2Icon,
+    TagIcon,
+    ShoppingBagIcon,
     UserIcon,
     UsersIcon,
 } from "@heroicons/react/24/outline";
@@ -46,6 +51,31 @@ const navItems: NavItem[] = [
         icon: <BeakerIcon className="w-5 h-5" />,
         name: "DIGEMID",
         path: "/digemid",
+        roles: CORE_ROLES,
+    },
+    {
+        icon: <BuildingStorefrontIcon className="w-5 h-5" />,
+        name: "GSP",
+        subItems: [
+            {
+                icon: <Squares2X2Icon className="w-4 h-4" />,
+                name: "Categorías",
+                path: "/gsp/categorias",
+                roles: GSP_VIEW_ROLES,
+            },
+            {
+                icon: <TagIcon className="w-4 h-4" />,
+                name: "Marcas",
+                path: "/gsp/marcas",
+                roles: GSP_VIEW_ROLES,
+            },
+            {
+                icon: <ShoppingBagIcon className="w-4 h-4" />,
+                name: "Productos",
+                path: "/gsp/productos",
+                roles: GSP_VIEW_ROLES,
+            },
+        ],
     },
     {
         icon: <PhotoIcon className="w-5 h-5" />,

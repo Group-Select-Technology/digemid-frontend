@@ -6,10 +6,16 @@ import { ThemeToggleButton } from "../components/common/ThemeToggleButton";
 // import NotificationDropdown from "../components/header/NotificationDropdown";
 import UserDropdown from "../components/header/UserDropdown";
 import { GridIcon, TableIcon, DollarLineIcon } from "../icons";
-import { PhotoIcon } from "@heroicons/react/24/outline";
+import {
+  PhotoIcon,
+  ShoppingBagIcon,
+  Squares2X2Icon,
+  TagIcon,
+} from "@heroicons/react/24/outline";
 import type { ReactNode } from "react";
 import { useAuth } from "../context/AuthContext";
 import type { RoleCode } from "../types";
+import { CORE_ROLES, GSP_VIEW_ROLES } from "../constants/roles";
 
 interface NavEntry {
   label: string;
@@ -34,6 +40,31 @@ const NAV_ENTRIES: NavEntry[] = [
     path: "/digemid",
     keywords: ["digemid", "productos", "medicamentos", "catalogo", "excel", "farmaceutico"],
     icon: <TableIcon className="w-4 h-4" />,
+    roles: CORE_ROLES,
+  },
+  {
+    label: "Categorías GSP",
+    description: "Categorías y subcategorías del catálogo GSP",
+    path: "/gsp/categorias",
+    keywords: ["gsp", "categorias", "subcategorias", "catalogo", "tienda"],
+    icon: <Squares2X2Icon className="w-4 h-4" />,
+    roles: GSP_VIEW_ROLES,
+  },
+  {
+    label: "Marcas GSP",
+    description: "Marcas del catálogo GSP",
+    path: "/gsp/marcas",
+    keywords: ["gsp", "marcas", "brands", "catalogo", "tienda"],
+    icon: <TagIcon className="w-4 h-4" />,
+    roles: GSP_VIEW_ROLES,
+  },
+  {
+    label: "Productos GSP",
+    description: "Productos publicados en la tienda GSP",
+    path: "/gsp/productos",
+    keywords: ["gsp", "productos", "tienda", "catalogo", "stock", "precios"],
+    icon: <ShoppingBagIcon className="w-4 h-4" />,
+    roles: GSP_VIEW_ROLES,
   },
   {
     label: "Select Punto de Venta",
