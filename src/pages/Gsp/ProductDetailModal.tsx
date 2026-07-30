@@ -181,9 +181,18 @@ export default function ProductDetailModal({
             </div>
             <div className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 dark:border-slate-700/50 dark:bg-slate-800/40">
               <p className="text-[11px] text-gray-400 dark:text-slate-400">Categoría</p>
-              <p className="text-sm font-medium text-gray-800 dark:text-white/90">
-                {product.category?.name ?? '—'}
-              </p>
+              {product.category?.parent ? (
+                <p className="text-sm font-medium text-gray-800 dark:text-white/90">
+                  <span className="font-normal text-gray-500 dark:text-slate-400">
+                    {product.category.parent.name} ›{' '}
+                  </span>
+                  {product.category.name}
+                </p>
+              ) : (
+                <p className="text-sm font-medium text-gray-800 dark:text-white/90">
+                  {product.category?.name ?? '—'}
+                </p>
+              )}
             </div>
           </div>
 

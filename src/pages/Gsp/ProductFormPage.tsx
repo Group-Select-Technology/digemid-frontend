@@ -6,7 +6,7 @@ import { formatCurrency, slugify, toNumber } from '../../utils/format';
 import { productsService } from '../../services/productsService';
 import { brandsService } from '../../services/brandsService';
 import { categoriesService } from '../../services/categoriesService';
-import type { Brand, Category, CreateProductDto, Product, UpdateProductDto } from '../../types';
+import type { Brand, Category, CreateProductDto, Product, ProductImage, UpdateProductDto } from '../../types';
 import PageBreadCrumb from '../../components/common/PageBreadCrumb';
 import PageMeta from '../../components/common/PageMeta';
 import FormSection from '../../components/crud/FormSection';
@@ -40,7 +40,10 @@ interface ProductForm {
   isBestSeller: boolean;
   isActive: boolean;
   brandId: string;
-  categoryId: string;
+  /** Categoría raíz seleccionada. Si no tiene subcategorías, es la categoría final del producto. */
+  categoryParentId: string;
+  /** Subcategoría seleccionada (solo aplica si la categoría raíz tiene hijas). */
+  categorySubId: string;
   images: File[];
 }
 
@@ -59,7 +62,8 @@ const emptyForm: ProductForm = {
   isBestSeller: false,
   isActive: true,
   brandId: '',
-  categoryId: '',
+  categoryParentId: '',
+  categorySubId: '',
   images: [],
 };
 
@@ -78,7 +82,11 @@ const toFormState = (product: Product): ProductForm => ({
   isBestSeller: product.isBestSeller,
   isActive: product.isActive,
   brandId: product.brand ? String(product.brand.id) : '',
-  categoryId: product.category ? String(product.category.id) : '',
+  // Si la categoría del producto tiene padre, es una subcategoría: preseleccionamos ambos niveles.
+  categoryParentId: product.category
+    ? String(product.category.parent?.id ?? product.category.id)
+    : '',
+  categorySubId: product.category?.parent ? String(product.category.id) : '',
   images: [],
 });
 
@@ -101,6 +109,11 @@ export default function ProductFormPage() {
 
   const [brands, setBrands] = useState<Brand[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+
+  // Orden editable de las imágenes ya guardadas (se reordenan sin volver a subirlas a AWS).
+  const [existingImages, setExistingImages] = useState<ProductImage[]>(
+    productFromState?.images ? [...productFromState.images].sort((a, b) => a.order - b.order) : []
+  );
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -130,6 +143,7 @@ export default function ProductFormPage() {
         if (cancelled) return;
         setProduct(data);
         setForm(toFormState(data));
+        setExistingImages([...(data.images ?? [])].sort((a, b) => a.order - b.order));
       } catch (err) {
         if (!cancelled) setLoadError(extractApiError(err) ?? 'No se encontró el producto.');
       } finally {
@@ -145,19 +159,63 @@ export default function ProductFormPage() {
   const update = <K extends keyof ProductForm>(key: K, value: ProductForm[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
 
+  const moveExistingImage = (from: number, to: number) => {
+    if (to < 0 || to >= existingImages.length) return;
+    setExistingImages((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    });
+  };
+
+  const removeExistingImage = (imageId: number) =>
+    setExistingImages((prev) => prev.filter((image) => image.id !== imageId));
+
   const brandOptions = useMemo(
     () => brands.map((brand) => ({ value: String(brand.id), label: brand.name })),
     [brands]
   );
 
-  const categoryOptions = useMemo(
-    () =>
-      categories.map((category) => ({
-        value: String(category.id),
-        label: category.parent ? `${category.parent.name} › ${category.name}` : category.name,
-      })),
+  // La categoría de un producto puede ser una raíz o una subcategoría (hija). El listado por
+  // defecto trae `parent` en cada item, con eso armamos el árbol de 2 niveles en el cliente.
+  const rootCategories = useMemo(
+    () => categories.filter((category) => !category.parent),
     [categories]
   );
+
+  const childrenByParentId = useMemo(() => {
+    const map = new Map<number, Category[]>();
+    categories.forEach((category) => {
+      if (!category.parent) return;
+      const siblings = map.get(category.parent.id) ?? [];
+      siblings.push(category);
+      map.set(category.parent.id, siblings);
+    });
+    return map;
+  }, [categories]);
+
+  const categoryParentOptions = useMemo(
+    () => rootCategories.map((category) => ({ value: String(category.id), label: category.name })),
+    [rootCategories]
+  );
+
+  const subCategories = useMemo(
+    () => childrenByParentId.get(Number(form.categoryParentId)) ?? [],
+    [childrenByParentId, form.categoryParentId]
+  );
+
+  const categorySubOptions = useMemo(
+    () => subCategories.map((category) => ({ value: String(category.id), label: category.name })),
+    [subCategories]
+  );
+
+  // Si la categoría raíz seleccionada tiene subcategorías, la categoría final del producto es la
+  // subcategoría; de lo contrario, la propia raíz.
+  const categoryId = subCategories.length > 0 ? form.categorySubId : form.categoryParentId;
+
+  const handleParentCategoryChange = (value: string) =>
+    setForm((prev) => ({ ...prev, categoryParentId: value, categorySubId: '' }));
 
   const originalPrice = toNumber(form.originalPrice);
   const discountPercentage = toNumber(form.discountPercentage);
@@ -172,12 +230,16 @@ export default function ProductFormPage() {
     if (form.description.trim().length < 2)
       return 'La descripción debe tener al menos 2 caracteres.';
     if (!form.brandId) return 'Debes seleccionar una marca.';
-    if (!form.categoryId) return 'Debes seleccionar una categoría.';
+    if (!form.categoryParentId) return 'Debes seleccionar una categoría.';
+    if (subCategories.length > 0 && !form.categorySubId)
+      return 'Debes seleccionar la subcategoría.';
     if (!form.originalPrice || originalPrice < 0)
       return 'El precio original debe ser un número mayor o igual a cero.';
     if (form.includes.length === 0) return 'Agrega al menos un elemento incluido.';
     if (form.specifications.length === 0) return 'Agrega al menos una especificación.';
     if (!isEditing && form.images.length === 0) return 'Debes subir al menos una imagen.';
+    if (isEditing && form.images.length === 0 && existingImages.length === 0)
+      return 'El producto debe conservar al menos una imagen.';
     if (discountPercentage < 0 || discountPercentage > 100)
       return 'El porcentaje de descuento debe estar entre 0 y 100.';
     return null;
@@ -207,14 +269,29 @@ export default function ProductFormPage() {
           originalPrice,
           discountPercentage: Math.trunc(discountPercentage),
           discountCash,
-          finalPrice,
           isFeatured: form.isFeatured,
           isBestSeller: form.isBestSeller,
           isActive: form.isActive,
           brandId: Number(form.brandId),
-          categoryId: Number(form.categoryId),
+          categoryId: Number(categoryId),
         };
         if (form.connections.length) payload.connections = form.connections;
+        // Si se subieron imágenes nuevas, la API reemplaza por completo el set anterior.
+        if (form.images.length) {
+          payload.images = form.images;
+        } else {
+          // Si no hay imágenes nuevas, enviamos el set final (reordenado y/o con eliminaciones)
+          // solo si cambió respecto al original; las que ya no aparecen aquí se eliminan en la API.
+          const originalOrder = (product.images ?? [])
+            .slice()
+            .sort((a, b) => a.order - b.order)
+            .map((image) => image.id);
+          const currentOrder = existingImages.map((image) => image.id);
+          const changed =
+            currentOrder.length !== originalOrder.length ||
+            currentOrder.some((imageId, index) => imageId !== originalOrder[index]);
+          if (changed) payload.imagesOrder = currentOrder;
+        }
 
         await productsService.update(product.id, payload);
         toast.success('Producto actualizado correctamente.');
@@ -230,7 +307,7 @@ export default function ProductFormPage() {
           isFeatured: form.isFeatured,
           isBestSeller: form.isBestSeller,
           brandId: Number(form.brandId),
-          categoryId: Number(form.categoryId),
+          categoryId: Number(categoryId),
           images: form.images,
         };
         if (form.connections.length) payload.connections = form.connections;
@@ -293,12 +370,95 @@ export default function ProductFormPage() {
       <form onSubmit={handleSubmit} className="flex flex-col gap-5">
         <FormAlert message={error} />
 
-        {isEditing && (
-          <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-400">
-            La API todavía no implementa <code>PATCH /products/:id</code>. El formulario ya envía el
-            payload correcto, pero los cambios no se guardarán hasta que backend complete el método.
-          </div>
-        )}
+        <FormSection
+          title="Imágenes"
+          description={
+            isEditing
+              ? 'Si subes imágenes nuevas, reemplazan por completo a las actuales. Usa las flechas para cambiar el orden o la ✕ para eliminar una, sin volver a subirlas.'
+              : `Hasta ${MAX_IMAGES} imágenes · la primera será la principal`
+          }
+        >
+          {isEditing && (
+            <div className="mb-4">
+              <p className="mb-2 text-xs font-medium text-gray-500 dark:text-gray-400">
+                Imágenes actuales
+              </p>
+              {existingImages.length ? (
+                <ul className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+                  {existingImages.map((image, index) => (
+                    <li
+                      key={image.id}
+                      className="relative overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700"
+                    >
+                      <img
+                        src={image.imagePath}
+                        alt={`${product?.name ?? ''} ${index + 1}`}
+                        className="mx-auto h-48 w-auto bg-white object-contain dark:bg-gray-800"
+                      />
+                      {index === 0 && (
+                        <span className="absolute left-1 top-1 rounded bg-brand-500 px-1.5 py-0.5 text-[10px] font-medium text-white">
+                          Principal
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => removeExistingImage(image.id)}
+                        disabled={saving || form.images.length > 0 || existingImages.length === 1}
+                        title="Eliminar imagen"
+                        className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-xs text-white transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-30"
+                      >
+                        ✕
+                      </button>
+                      <div className="flex items-center justify-between gap-1 bg-white px-2 py-1 dark:bg-gray-900">
+                        <span className="text-[10px] text-gray-500 dark:text-gray-400">
+                          Posición {index + 1}
+                        </span>
+                        <span className="flex shrink-0 gap-0.5">
+                          <button
+                            type="button"
+                            onClick={() => moveExistingImage(index, index - 1)}
+                            disabled={saving || form.images.length > 0 || index === 0}
+                            title="Mover antes"
+                            className="rounded px-1 text-xs text-gray-500 transition hover:text-brand-500 disabled:opacity-30"
+                          >
+                            ←
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => moveExistingImage(index, index + 1)}
+                            disabled={
+                              saving || form.images.length > 0 || index === existingImages.length - 1
+                            }
+                            title="Mover después"
+                            className="rounded px-1 text-xs text-gray-500 transition hover:text-brand-500 disabled:opacity-30"
+                          >
+                            →
+                          </button>
+                        </span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <span className="text-sm text-gray-400">Sin imágenes registradas.</span>
+              )}
+            </div>
+          )}
+          <ImageDropzone
+            label={isEditing ? 'Reemplazar imágenes (opcional)' : 'Imágenes del producto'}
+            required={!isEditing}
+            reorderable
+            maxFiles={MAX_IMAGES}
+            files={form.images}
+            onChange={(images) => update('images', images)}
+            hint={
+              isEditing
+                ? `Deja esto vacío para conservar las imágenes actuales · hasta ${MAX_IMAGES} imágenes · máx. 5 MB c/u`
+                : `Hasta ${MAX_IMAGES} imágenes · máx. 5 MB c/u · usa las flechas para ordenarlas`
+            }
+            disabled={saving}
+          />
+        </FormSection>
 
         <FormSection
           title="Datos generales"
@@ -348,12 +508,24 @@ export default function ProductFormPage() {
             <SelectField
               label="Categoría"
               required
-              value={form.categoryId}
-              onChange={(value) => update('categoryId', value)}
-              options={categoryOptions}
+              value={form.categoryParentId}
+              onChange={handleParentCategoryChange}
+              options={categoryParentOptions}
               placeholder="Selecciona una categoría"
               disabled={saving}
             />
+            {subCategories.length > 0 && (
+              <SelectField
+                label="Subcategoría"
+                required
+                value={form.categorySubId}
+                onChange={(value) => update('categorySubId', value)}
+                options={categorySubOptions}
+                placeholder="Selecciona una subcategoría"
+                hint="Esta categoría tiene subcategorías: el producto debe asignarse a una de ellas."
+                disabled={saving}
+              />
+            )}
           </div>
         </FormSection>
 
@@ -474,45 +646,6 @@ export default function ProductFormPage() {
               />
             )}
           </div>
-        </FormSection>
-
-        <FormSection
-          title="Imágenes"
-          description={
-            isEditing
-              ? 'La API aún no permite modificar las imágenes de un producto existente'
-              : `Hasta ${MAX_IMAGES} imágenes · la primera será la principal`
-          }
-        >
-          {isEditing ? (
-            <div className="flex flex-wrap gap-2">
-              {product?.images?.length ? (
-                [...product.images]
-                  .sort((a, b) => a.order - b.order)
-                  .map((image) => (
-                    <img
-                      key={image.id}
-                      src={image.imagePath}
-                      alt={`${product.name} ${image.order + 1}`}
-                      className="h-24 w-24 rounded-lg border border-gray-200 object-cover dark:border-gray-700"
-                    />
-                  ))
-              ) : (
-                <span className="text-sm text-gray-400">Sin imágenes registradas.</span>
-              )}
-            </div>
-          ) : (
-            <ImageDropzone
-              label="Imágenes del producto"
-              required
-              reorderable
-              maxFiles={MAX_IMAGES}
-              files={form.images}
-              onChange={(images) => update('images', images)}
-              hint={`Hasta ${MAX_IMAGES} imágenes · máx. 5 MB c/u · usa las flechas para ordenarlas`}
-              disabled={saving}
-            />
-          )}
         </FormSection>
 
         {/* Barra de acciones pegada al viewport para no perder los botones en un formulario largo */}

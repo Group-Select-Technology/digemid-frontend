@@ -101,9 +101,10 @@ export default function ProductsPage() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailProduct, setDetailProduct] = useState<Product | null>(null);
 
-  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmType, setConfirmType] = useState<'delete' | 'toggle'>('delete');
   const [targetProduct, setTargetProduct] = useState<Product | null>(null);
-  const [deleting, setDeleting] = useState(false);
+  const [confirming, setConfirming] = useState(false);
 
   const fetchProducts = useCallback(
     async (pageIndex: number, activeFilters: Filters, trash: boolean) => {
@@ -200,21 +201,49 @@ export default function ProductsPage() {
   const openEdit = (product: Product) =>
     navigate(`/gsp/productos/${product.id}/editar`, { state: { product } });
 
-  const handleDelete = async () => {
+  const openConfirm = (product: Product, type: 'delete' | 'toggle') => {
+    setTargetProduct(product);
+    setConfirmType(type);
+    setConfirmOpen(true);
+  };
+
+  const handleConfirm = async () => {
     if (!targetProduct) return;
-    setDeleting(true);
+    setConfirming(true);
     try {
-      await productsService.remove(targetProduct.id);
-      toast.success('Producto eliminado correctamente.');
-      setDeleteOpen(false);
-      if (products.length === 1 && page > 1) setPage(page - 1);
-      else refresh();
+      if (confirmType === 'delete') {
+        await productsService.remove(targetProduct.id);
+        toast.success('Producto eliminado correctamente.');
+        setConfirmOpen(false);
+        if (products.length === 1 && page > 1) {
+          setPage(page - 1);
+          return;
+        }
+      } else {
+        await productsService.update(targetProduct.id, { isActive: !targetProduct.isActive });
+        toast.success(`Producto ${targetProduct.isActive ? 'desactivado' : 'activado'} correctamente.`);
+        setConfirmOpen(false);
+      }
+      refresh();
     } catch (err) {
-      toast.error(extractApiError(err) ?? 'Error al eliminar el producto.');
+      toast.error(extractApiError(err) ?? 'Error al realizar la acción.');
     } finally {
-      setDeleting(false);
+      setConfirming(false);
     }
   };
+
+  const confirmTexts =
+    confirmType === 'delete'
+      ? {
+          title: 'Eliminar Producto',
+          message: `¿Estás seguro de que deseas eliminar "${targetProduct?.name}"? El producto pasará a la papelera.`,
+        }
+      : {
+          title: targetProduct?.isActive ? 'Desactivar Producto' : 'Activar Producto',
+          message: targetProduct?.isActive
+            ? `¿Deseas desactivar "${targetProduct?.name}"? Dejará de mostrarse en la tienda.`
+            : `¿Deseas activar "${targetProduct?.name}"?`,
+        };
 
   const columns: Column<Product>[] = [
     {
@@ -246,7 +275,11 @@ export default function ProductsPage() {
       sortValue: (product) => product.category?.name ?? '',
       render: (product) => (
         <span className="text-sm text-gray-600 dark:text-gray-400">
-          {product.category?.name ?? '—'}
+          {product.category
+            ? product.category.parent
+              ? `${product.category.parent.name} › ${product.category.name}`
+              : product.category.name
+            : '—'}
         </span>
       ),
     },
@@ -283,7 +316,11 @@ export default function ProductsPage() {
       header: 'Estado',
       render: (product) => (
         <div className="flex flex-wrap gap-1">
-          <StatusBadge tone={product.isActive ? 'success' : 'danger'}>
+          <StatusBadge
+            tone={product.isActive ? 'success' : 'danger'}
+            onClick={canWrite && !showTrash ? () => openConfirm(product, 'toggle') : undefined}
+            title={canWrite && !showTrash ? 'Cambiar estado' : undefined}
+          >
             {product.isActive ? 'Activo' : 'Inactivo'}
           </StatusBadge>
           {product.isFeatured && <StatusBadge tone="warning">Destacado</StatusBadge>}
@@ -303,10 +340,7 @@ export default function ProductsPage() {
             ...(canWrite && !showTrash
               ? [
                   editAction(() => openEdit(product)),
-                  deleteAction(() => {
-                    setTargetProduct(product);
-                    setDeleteOpen(true);
-                  }),
+                  deleteAction(() => openConfirm(product, 'delete')),
                 ]
               : []),
           ]}
@@ -513,12 +547,12 @@ export default function ProductsPage() {
       />
 
       <ConfirmModal
-        isOpen={deleteOpen}
-        onClose={() => setDeleteOpen(false)}
-        onConfirm={handleDelete}
-        loading={deleting}
-        title="Eliminar Producto"
-        message={`¿Estás seguro de que deseas eliminar "${targetProduct?.name}"? El producto pasará a la papelera.`}
+        isOpen={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        onConfirm={handleConfirm}
+        loading={confirming}
+        title={confirmTexts.title}
+        message={confirmTexts.message}
       />
     </>
   );

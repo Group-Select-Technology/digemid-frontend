@@ -148,7 +148,11 @@ export default function ImageDropzone({
               key={preview.url}
               className="relative overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700"
             >
-              <img src={preview.url} alt={preview.file.name} className="h-24 w-full object-cover" />
+              <img
+                src={preview.url}
+                alt={preview.file.name}
+                className="aspect-square w-full bg-white object-contain dark:bg-gray-800"
+              />
               {reorderable && index === 0 && (
                 <span className="absolute left-1 top-1 rounded bg-brand-500 px-1.5 py-0.5 text-[10px] font-medium text-white">
                   Principal

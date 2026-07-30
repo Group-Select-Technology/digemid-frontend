@@ -270,6 +270,8 @@ export interface ProductCategory {
   name: string;
   slug: string;
   imagePath: string | null;
+  /** Presente solo cuando la categoría del producto es una subcategoría (hija). */
+  parent?: CategorySummary | null;
 }
 
 export interface ProductUser {
@@ -337,7 +339,10 @@ export interface UpdateProductDto {
   isActive?: boolean;
   discountPercentage?: number;
   discountCash?: number;
-  finalPrice?: number;
+  /** Si se envían, reemplazan por completo el set de imágenes anterior. */
+  images?: File[];
+  /** IDs de las imágenes existentes en el nuevo orden (la primera es la principal). No se debe enviar junto con `images`. */
+  imagesOrder?: number[];
 }
 
 export interface ProductPaginationParams extends PaginationParams {
