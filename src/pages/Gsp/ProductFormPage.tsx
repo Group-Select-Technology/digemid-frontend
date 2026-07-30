@@ -624,7 +624,7 @@ export default function ProductFormPage() {
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <ToggleField
               label="Destacado"
-              description="Se muestra en la portada"
+              description="Se muestra en el inicio de la página"
               checked={form.isFeatured}
               onChange={(value) => update('isFeatured', value)}
               disabled={saving}

@@ -401,7 +401,7 @@ export default function ProductsPage() {
                 setShowTrash(!showTrash);
               }}
             >
-              {showTrash ? 'Ver activos' : 'Ver papelera'}
+              {showTrash ? 'Ver Productos' : 'Ver Eliminados'}
             </Button>
             {!showTrash && (
               <CanAccess roles={GSP_WRITE_ROLES}>

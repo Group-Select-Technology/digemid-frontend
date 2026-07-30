@@ -11,19 +11,23 @@ import CrudCard from '../../components/crud/CrudCard';
 import Pagination from '../../components/crud/Pagination';
 import ConfirmModal from '../../components/crud/ConfirmModal';
 import RowActions from '../../components/crud/RowActions';
-import { deleteAction, editAction } from '../../components/crud/rowActionPresets';
+import { deleteAction, editAction, viewAction } from '../../components/crud/rowActionPresets';
 import { FormAlert, TextAreaField, TextField } from '../../components/crud/FormControls';
 import Button from '../../components/ui/button/Button';
 import { Modal } from '../../components/ui/modal';
 import { PlusIcon } from '../../icons';
 import CanAccess from '../../components/auth/CanAccess';
-import { GSP_WRITE_ROLES } from '../../constants/roles';
+import { useAuth } from '../../context/AuthContext';
+import { GSP_WRITE_ROLES, canWriteGsp } from '../../constants/roles';
 
 const PAGE_SIZE = 10;
 
 const emptyForm: CreateBrandDto = { name: '', description: '' };
 
 export default function BrandsPage() {
+  const { user } = useAuth();
+  const canWrite = canWriteGsp(user?.roleCode);
+
   const [brands, setBrands] = useState<Brand[]>([]);
   const [meta, setMeta] = useState<PaginationMeta | null>(null);
   const [page, setPage] = useState(1);
@@ -35,6 +39,10 @@ export default function BrandsPage() {
   const [form, setForm] = useState<CreateBrandDto>(emptyForm);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [detailBrand, setDetailBrand] = useState<Brand | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
 
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [targetBrand, setTargetBrand] = useState<Brand | null>(null);
@@ -73,6 +81,20 @@ export default function BrandsPage() {
     setForm({ name: brand.name, description: brand.description ?? '' });
     setFormError(null);
     setFormOpen(true);
+  };
+
+  const openDetail = async (brand: Brand) => {
+    setDetailBrand(brand);
+    setDetailOpen(true);
+    setDetailLoading(true);
+    try {
+      const full = await brandsService.getOne(brand.id);
+      setDetailBrand(full);
+    } catch {
+      toast.error('No se pudo cargar el detalle de la marca.');
+    } finally {
+      setDetailLoading(false);
+    }
   };
 
   const handleSave = async () => {
@@ -143,7 +165,7 @@ export default function BrandsPage() {
       className: 'normal-case',
       render: (brand) => (
         <span className="line-clamp-2 max-w-md text-sm text-gray-600 dark:text-gray-400">
-          {brand.description || '—'}
+          {brand.description || 'Sin datos'}
         </span>
       ),
     },
@@ -160,17 +182,20 @@ export default function BrandsPage() {
     {
       header: 'Acciones',
       render: (brand) => (
-        <CanAccess roles={GSP_WRITE_ROLES}>
-          <RowActions
-            actions={[
-              editAction(() => openEdit(brand)),
-              deleteAction(() => {
-                setTargetBrand(brand);
-                setDeleteOpen(true);
-              }),
-            ]}
-          />
-        </CanAccess>
+        <RowActions
+          actions={[
+            viewAction(() => openDetail(brand)),
+            ...(canWrite
+              ? [
+                  editAction(() => openEdit(brand)),
+                  deleteAction(() => {
+                    setTargetBrand(brand);
+                    setDeleteOpen(true);
+                  }),
+                ]
+              : []),
+          ]}
+        />
       ),
     },
   ];
@@ -227,7 +252,7 @@ export default function BrandsPage() {
             required
             value={form.name}
             onChange={(name) => setForm({ ...form, name })}
-            placeholder="Epson"
+            placeholder="Ingresar nombre de la marca"
             disabled={saving}
           />
           <TextAreaField
@@ -245,6 +270,54 @@ export default function BrandsPage() {
           </Button>
           <Button onClick={handleSave} disabled={saving}>
             {saving ? 'Guardando...' : 'Guardar'}
+          </Button>
+        </div>
+      </Modal>
+
+      <Modal isOpen={detailOpen} onClose={() => setDetailOpen(false)} className="max-w-lg p-6">
+        <h4 className="mb-5 text-lg font-semibold text-gray-800 dark:text-white">
+          Detalle de la Marca
+        </h4>
+        {detailBrand && (
+          <div className="space-y-5">
+            <div>
+              <p className="font-semibold text-2xl text-gray-800 dark:text-white/90">
+                {detailBrand.name}
+              </p>
+              <p className="text-sm text-gray-400 dark:text-gray-500">#{detailBrand.id}</p>
+            </div>
+
+            <hr className="border-gray-100 dark:border-gray-800" />
+
+            {detailLoading ? (
+              <p className="text-sm text-gray-500 dark:text-gray-400">Cargando detalle…</p>
+            ) : (
+              <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="sm:col-span-2">
+                  <dt className="text-xs text-gray-500 dark:text-gray-400">Descripción</dt>
+                  <dd className="mt-0.5 text-sm text-gray-800 dark:text-white/90">
+                    {detailBrand.description ?? 'Sin datos'}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-gray-500 dark:text-gray-400">Creada</dt>
+                  <dd className="mt-0.5 text-sm text-gray-800 dark:text-white/90">
+                    {formatDate(detailBrand.createdAt)}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-gray-500 dark:text-gray-400">Actualizada</dt>
+                  <dd className="mt-0.5 text-sm text-gray-800 dark:text-white/90">
+                    {formatDate(detailBrand.updatedAt)}
+                  </dd>
+                </div>
+              </dl>
+            )}
+          </div>
+        )}
+        <div className="mt-6 flex justify-end">
+          <Button variant="outline" onClick={() => setDetailOpen(false)}>
+            Cerrar
           </Button>
         </div>
       </Modal>

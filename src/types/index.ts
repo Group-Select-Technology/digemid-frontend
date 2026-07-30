@@ -209,9 +209,9 @@ export interface Category {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
-  /** Presente cuando la consulta se hizo sin `sons=1`. */
+  /** Presente en findOne y en listados sin `sons=1`. */
   parent?: CategorySummary | null;
-  /** Presente solo cuando la consulta se hizo con `sons=1`. */
+  /** Presente en findOne y en listados con `sons=1`. */
   children?: CategorySummary[];
 }
 

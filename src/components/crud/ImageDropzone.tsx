@@ -142,7 +142,7 @@ export default function ImageDropzone({
       )}
 
       {previews.length > 0 && (
-        <ul className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <ul className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-5">
           {previews.map((preview, index) => (
             <li
               key={preview.url}
@@ -151,8 +151,8 @@ export default function ImageDropzone({
               <img
                 src={preview.url}
                 alt={preview.file.name}
-                className="aspect-square w-full bg-white object-contain dark:bg-gray-800"
-              />
+                className="mx-auto h-48 w-auto bg-white object-contain dark:bg-gray-800"
+                />
               {reorderable && index === 0 && (
                 <span className="absolute left-1 top-1 rounded bg-brand-500 px-1.5 py-0.5 text-[10px] font-medium text-white">
                   Principal

@@ -105,6 +105,7 @@ export default function CategoriesPage() {
   // Modal de detalle
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailCategory, setDetailCategory] = useState<Category | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
 
   // Confirmaciones
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -239,6 +240,20 @@ export default function CategoriesPage() {
     }
   };
 
+  const openDetail = async (category: Category) => {
+    setDetailCategory(category);
+    setDetailOpen(true);
+    setDetailLoading(true);
+    try {
+      const full = await categoriesService.getOne(category.id);
+      setDetailCategory(full);
+    } catch {
+      toast.error('No se pudo cargar el detalle de la categoría.');
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
   const openConfirm = (category: Category, type: 'delete' | 'toggle') => {
     setTargetCategory(category);
     setConfirmType(type);
@@ -266,6 +281,7 @@ export default function CategoriesPage() {
       setConfirmOpen(false);
       refresh();
     } catch (err) {
+      setConfirmOpen(false);
       toast.error(extractApiError(err) ?? 'Error al realizar la acción.');
     } finally {
       setConfirming(false);
@@ -342,7 +358,7 @@ export default function CategoriesPage() {
       className: 'normal-case',
       render: (category) => (
         <span className="line-clamp-2 max-w-xs text-sm text-gray-600 dark:text-gray-400">
-          {category.description || '—'}
+          {category.description || 'Sin datos'}
         </span>
       ),
     },
@@ -366,10 +382,7 @@ export default function CategoriesPage() {
         return (
           <RowActions
             actions={[
-              viewAction(() => {
-                setDetailCategory(category);
-                setDetailOpen(true);
-              }),
+              viewAction(() => openDetail(category)),
               ...(canWrite
                 ? [
                     editAction(() => openEdit(category)),
@@ -560,18 +573,18 @@ export default function CategoriesPage() {
                 <img
                   src={detailCategory.imagePath}
                   alt={detailCategory.name}
-                  className="h-16 w-16 rounded-xl object-cover"
+                  className="h-32 w-32 rounded-xl object-cover"
                 />
               ) : (
-                <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-gray-100 text-xl font-bold text-gray-400 dark:bg-gray-800">
+                <div className="flex h-32 w-32 items-center justify-center rounded-xl bg-gray-100 text-xl font-bold text-gray-400 dark:bg-gray-800">
                   {detailCategory.name.charAt(0).toUpperCase()}
                 </div>
               )}
               <div>
-                <p className="font-semibold text-gray-800 dark:text-white/90">
+                <p className="font-semibold text-2xl text-gray-800 dark:text-white/90">
                   {detailCategory.name}
                 </p>
-                <p className="text-xs text-gray-400 dark:text-gray-500">/{detailCategory.slug}</p>
+                <p className="text-sm text-gray-400 dark:text-gray-500">/{detailCategory.slug}</p>
                 <StatusBadge tone={detailCategory.isActive ? 'success' : 'danger'}>
                   {detailCategory.isActive ? 'Activa' : 'Inactiva'}
                 </StatusBadge>
@@ -580,40 +593,73 @@ export default function CategoriesPage() {
 
             <hr className="border-gray-100 dark:border-gray-800" />
 
-            <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div className="sm:col-span-2">
-                <dt className="text-xs text-gray-500 dark:text-gray-400">Descripción</dt>
-                <dd className="mt-0.5 text-sm text-gray-800 dark:text-white/90">
-                  {detailCategory.description || '—'}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-xs text-gray-500 dark:text-gray-400">Categoría padre</dt>
-                <dd className="mt-0.5 text-sm text-gray-800 dark:text-white/90">
-                  {detailCategory.parent?.name ?? 'Categoría raíz'}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-xs text-gray-500 dark:text-gray-400">Subcategorías</dt>
-                <dd className="mt-0.5 text-sm text-gray-800 dark:text-white/90">
-                  {detailCategory.children?.length
-                    ? detailCategory.children.map((child) => child.name).join(', ')
-                    : '—'}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-xs text-gray-500 dark:text-gray-400">Creada</dt>
-                <dd className="mt-0.5 text-sm text-gray-800 dark:text-white/90">
-                  {formatDate(detailCategory.createdAt)}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-xs text-gray-500 dark:text-gray-400">Actualizada</dt>
-                <dd className="mt-0.5 text-sm text-gray-800 dark:text-white/90">
-                  {formatDate(detailCategory.updatedAt)}
-                </dd>
-              </div>
-            </dl>
+            {detailLoading ? (
+              <p className="text-sm text-gray-500 dark:text-gray-400">Cargando detalle…</p>
+            ) : (
+              <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="sm:col-span-2">
+                  <dt className="text-xs text-gray-500 dark:text-gray-400">Descripción</dt>
+                  <dd className="mt-0.5 text-sm text-gray-800 dark:text-white/90">
+                    {detailCategory.description || 'Sin datos'}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-gray-500 dark:text-gray-400">Categoría padre</dt>
+                  <dd className="mt-0.5 text-sm text-gray-800 dark:text-white/90">
+                    {detailCategory.parent?.name ?? 'Categoría raíz'}
+                  </dd>
+                </div>
+                <div className="sm:col-span-2">
+                  <dt className="text-xs text-gray-500 dark:text-gray-400">Subcategorías</dt>
+                  <dd className="mt-1">
+                    {detailCategory.children?.length ? (
+                      <ul className="space-y-2">
+                        {detailCategory.children.map((child) => (
+                          <li key={child.id} className="flex items-center gap-3">
+                            {child.imagePath ? (
+                              <img
+                                src={child.imagePath}
+                                alt={child.name}
+                                className="h-8 w-8 rounded-lg object-cover"
+                              />
+                            ) : (
+                              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100 text-xs font-semibold text-gray-400 dark:bg-gray-800 dark:text-gray-500">
+                                {child.name.charAt(0).toUpperCase()}
+                              </div>
+                            )}
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-medium text-gray-800 dark:text-white/90">
+                                {child.name}
+                              </p>
+                              <p className="truncate text-xs lowercase text-gray-400 dark:text-gray-500">
+                                /{child.slug}
+                              </p>
+                            </div>
+                            <StatusBadge tone={child.isActive ? 'success' : 'danger'}>
+                              {child.isActive ? 'Activa' : 'Inactiva'}
+                            </StatusBadge>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <span className="text-sm text-gray-800 dark:text-white/90">—</span>
+                    )}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-gray-500 dark:text-gray-400">Creada</dt>
+                  <dd className="mt-0.5 text-sm text-gray-800 dark:text-white/90">
+                    {formatDate(detailCategory.createdAt)}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-gray-500 dark:text-gray-400">Actualizada</dt>
+                  <dd className="mt-0.5 text-sm text-gray-800 dark:text-white/90">
+                    {formatDate(detailCategory.updatedAt)}
+                  </dd>
+                </div>
+              </dl>
+            )}
           </div>
         )}
         <div className="mt-6 flex justify-end">
