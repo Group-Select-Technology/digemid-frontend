@@ -12,10 +12,15 @@ import CobranzasPage from "./pages/Cobranzas/CobranzasPage";
 import SelectPuntoVentaPage from "./pages/SelectPos/SelectPuntoVentaPage";
 import Forbidden from "./pages/OtherPage/Forbidden";
 import ProfilePage from "./pages/Profile/ProfilePage";
+import CategoriesPage from "./pages/Gsp/CategoriesPage";
+import BrandsPage from "./pages/Gsp/BrandsPage";
+import ProductsPage from "./pages/Gsp/ProductsPage";
+import ProductFormPage from "./pages/Gsp/ProductFormPage";
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import RoleRoute from "./components/auth/RoleRoute";
 import PublicRoute from "./components/auth/PublicRoute";
+import { CORE_ROLES, GSP_VIEW_ROLES, GSP_WRITE_ROLES } from "./constants/roles";
 
 export default function App() {
     return (
@@ -29,7 +34,22 @@ export default function App() {
                             <Route index path="/" element={<Home />} />
 
                             {/* DIGEMID */}
-                            <Route path="/digemid" element={<DigemidPage />} />
+                            <Route element={<RoleRoute roles={CORE_ROLES} />}>
+                                <Route path="/digemid" element={<DigemidPage />} />
+                            </Route>
+
+                            {/* GSP — catálogo visible para todos los roles, escritura según la API */}
+                            <Route element={<RoleRoute roles={GSP_VIEW_ROLES} />}>
+                                <Route path="/gsp/categorias" element={<CategoriesPage />} />
+                                <Route path="/gsp/marcas" element={<BrandsPage />} />
+                                <Route path="/gsp/productos" element={<ProductsPage />} />
+                            </Route>
+
+                            {/* Formulario de productos en página aparte: solo roles con permiso de escritura */}
+                            <Route element={<RoleRoute roles={GSP_WRITE_ROLES} />}>
+                                <Route path="/gsp/productos/nuevo" element={<ProductFormPage />} />
+                                <Route path="/gsp/productos/:id/editar" element={<ProductFormPage />} />
+                            </Route>
 
                             <Route element={<RoleRoute roles={['ADMIN', 'DESARROLLO', 'SOPORTE']} />}>
                                 <Route path="/select-punto-venta" element={<SelectPuntoVentaPage />} />

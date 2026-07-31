@@ -13,7 +13,6 @@ import ConfirmModal from '../../components/crud/ConfirmModal';
 import { PencilIcon, PlusIcon, TrashBinIcon, EyeIcon } from '../../icons';
 import CanAccess from '../../components/auth/CanAccess';
 
-const ROLE_CODES = ['ADMIN', 'SOPORTE', 'DESARROLLO'] as const;
 const DOC_TYPES = ['DNI', 'PASSPORT', 'RUC'] as const;
 
 const emptyForm: CreateUserDto = {
@@ -310,8 +309,8 @@ export default function UsersPage() {
                   onChange={(e) => setForm({ ...form, roleCode: e.target.value as CreateUserDto['roleCode'] })}
                   className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
                 >
-                  {ROLE_CODES.map((c) => (
-                    <option key={c} value={c}>{c}</option>
+                  {roles.map((r) => (
+                    <option key={r.code} value={r.code}>{r.name}</option>
                   ))}
                 </select>
               </div>

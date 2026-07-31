@@ -5,13 +5,34 @@ import { useAuth } from '../../context/AuthContext';
 import { digemidService } from '../../services/digemidService';
 import { usersService } from '../../services/usersService';
 import { peopleService } from '../../services/peopleService';
+import { categoriesService } from '../../services/categoriesService';
+import { brandsService } from '../../services/brandsService';
+import { productsService } from '../../services/productsService';
+import { isGspRole } from '../../constants/roles';
 import { BoxIcon, GroupIcon, UserIcon, DownloadIcon, ArrowRightIcon } from '../../icons';
+import {
+  ShoppingBagIcon,
+  Squares2X2Icon,
+  TagIcon,
+} from '@heroicons/react/24/outline';
 
 interface Stats {
   totalDigemid: number | null;
   totalUsers: number | null;
   totalPeople: number | null;
+  totalCategories: number | null;
+  totalBrands: number | null;
+  totalProducts: number | null;
 }
+
+const emptyStats: Stats = {
+  totalDigemid: null,
+  totalUsers: null,
+  totalPeople: null,
+  totalCategories: null,
+  totalBrands: null,
+  totalProducts: null,
+};
 
 // ── Stat card ────────────────────────────────────────────────────────────────
 function StatCard({
@@ -77,27 +98,33 @@ function QuickLink({ to, label, icon }: { to: string; label: string; icon: React
 // ── Main component ───────────────────────────────────────────────────────────
 export default function Home() {
   const { user } = useAuth();
+
+  // Los roles GSP solo trabajan con el catálogo de la tienda.
+  const isGsp = isGspRole(user?.roleCode);
+  const canSeeDigemid = !isGsp;
   const canSeeUsersAndPeople =
     user?.roleCode === 'ADMIN' || user?.roleCode === 'DESARROLLO';
 
-  const [stats, setStats] = useState<Stats>({
-    totalDigemid: null,
-    totalUsers: null,
-    totalPeople: null,
-  });
+  const [stats, setStats] = useState<Stats>(emptyStats);
   const [loading, setLoading] = useState(true);
 
   const fetchStats = useCallback(async () => {
     setLoading(true);
-    const [digemidRes, usersRes, peopleRes] = await Promise.allSettled([
-      digemidService.getAll({ limit: 1, offset: 0 }),
-      canSeeUsersAndPeople ? usersService.getAll({ limit: 500 }) : Promise.resolve(null),
-      canSeeUsersAndPeople ? peopleService.getAll({ limit: 500 }) : Promise.resolve(null),
-    ]);
+    const [digemidRes, usersRes, peopleRes, categoriesRes, brandsRes, productsRes] =
+      await Promise.allSettled([
+        canSeeDigemid ? digemidService.getAll({ limit: 1, offset: 0 }) : Promise.resolve(null),
+        canSeeUsersAndPeople ? usersService.getAll({ limit: 500 }) : Promise.resolve(null),
+        canSeeUsersAndPeople ? peopleService.getAll({ limit: 500 }) : Promise.resolve(null),
+        categoriesService.getAll({ limit: 1, offset: 0 }),
+        brandsService.getAll({ limit: 1, offset: 0 }),
+        productsService.getAll({ limit: 1, offset: 0 }),
+      ]);
 
     setStats({
       totalDigemid:
-        digemidRes.status === 'fulfilled' ? digemidRes.value.meta.totalItems : null,
+        digemidRes.status === 'fulfilled' && digemidRes.value
+          ? digemidRes.value.meta.totalItems
+          : null,
       totalUsers:
         usersRes.status === 'fulfilled' && Array.isArray(usersRes.value)
           ? usersRes.value.length
@@ -106,9 +133,13 @@ export default function Home() {
         peopleRes.status === 'fulfilled' && Array.isArray(peopleRes.value)
           ? peopleRes.value.length
           : null,
+      totalCategories:
+        categoriesRes.status === 'fulfilled' ? categoriesRes.value.meta.totalItems : null,
+      totalBrands: brandsRes.status === 'fulfilled' ? brandsRes.value.meta.totalItems : null,
+      totalProducts: productsRes.status === 'fulfilled' ? productsRes.value.meta.totalItems : null,
     });
     setLoading(false);
-  }, [canSeeUsersAndPeople]);
+  }, [canSeeDigemid, canSeeUsersAndPeople]);
 
   useEffect(() => {
     fetchStats();
@@ -123,29 +154,60 @@ export default function Home() {
 
   return (
     <>
-      <PageMeta title="Dashboard | DIGEMID" description="Panel principal del sistema" />
+      <PageMeta title="Dashboard | Select" description="Panel principal del sistema" />
 
       {/* Greeting */}
       <div className="mb-6">
         <h2 className="text-2xl font-semibold text-gray-800 dark:text-white/90">
-          {greeting}, 
+          {greeting},
           <span className='capitalize'> {firstName} {lastName}</span>
         </h2>
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-          Aquí tienes un resumen del sistema DIGEMID.
+          {isGsp
+            ? 'Aquí tienes un resumen del catálogo GSP.'
+            : 'Aquí tienes un resumen del sistema.'}
         </p>
       </div>
 
       {/* Metric cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 mb-6">
+        {canSeeDigemid && (
+          <StatCard
+            title="Productos DIGEMID"
+            value={stats.totalDigemid}
+            loading={loading}
+            icon={<BoxIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />}
+            colorClass="bg-blue-50 dark:bg-blue-500/10"
+            link="/digemid"
+            linkLabel="Ver catálogo"
+          />
+        )}
         <StatCard
-          title="Productos DIGEMID"
-          value={stats.totalDigemid}
+          title="Productos GSP"
+          value={stats.totalProducts}
           loading={loading}
-          icon={<BoxIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />}
-          colorClass="bg-blue-50 dark:bg-blue-500/10"
-          link="/digemid"
-          linkLabel="Ver catálogo"
+          icon={<ShoppingBagIcon className="w-5 h-5 text-brand-600 dark:text-brand-400" />}
+          colorClass="bg-brand-50 dark:bg-brand-500/10"
+          link="/gsp/productos"
+          linkLabel="Gestionar productos"
+        />
+        <StatCard
+          title="Categorías GSP"
+          value={stats.totalCategories}
+          loading={loading}
+          icon={<Squares2X2Icon className="w-5 h-5 text-amber-600 dark:text-amber-400" />}
+          colorClass="bg-amber-50 dark:bg-amber-500/10"
+          link="/gsp/categorias"
+          linkLabel="Gestionar categorías"
+        />
+        <StatCard
+          title="Marcas GSP"
+          value={stats.totalBrands}
+          loading={loading}
+          icon={<TagIcon className="w-5 h-5 text-cyan-600 dark:text-cyan-400" />}
+          colorClass="bg-cyan-50 dark:bg-cyan-500/10"
+          link="/gsp/marcas"
+          linkLabel="Gestionar marcas"
         />
         {canSeeUsersAndPeople && (
           <>
@@ -177,11 +239,13 @@ export default function Home() {
           Accesos rápidos
         </p>
         <div className="flex flex-wrap gap-3">
-          <QuickLink
-            to="/digemid"
-            label="Catálogo DIGEMID"
-            icon={<BoxIcon className="w-4 h-4" />}
-          />
+          {canSeeDigemid && (
+            <QuickLink
+              to="/digemid"
+              label="Catálogo DIGEMID"
+              icon={<BoxIcon className="w-4 h-4" />}
+            />
+          )}
           {user?.roleCode === 'ADMIN' && (
             <QuickLink
               to="/digemid"
@@ -189,6 +253,17 @@ export default function Home() {
               icon={<DownloadIcon className="w-4 h-4" />}
             />
           )}
+          <QuickLink
+            to="/gsp/productos"
+            label="Productos GSP"
+            icon={<ShoppingBagIcon className="w-4 h-4" />}
+          />
+          <QuickLink
+            to="/gsp/categorias"
+            label="Categorías GSP"
+            icon={<Squares2X2Icon className="w-4 h-4" />}
+          />
+          <QuickLink to="/gsp/marcas" label="Marcas GSP" icon={<TagIcon className="w-4 h-4" />} />
           {canSeeUsersAndPeople && (
             <QuickLink
               to="/usuarios"
