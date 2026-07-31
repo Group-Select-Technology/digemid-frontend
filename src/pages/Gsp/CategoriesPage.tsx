@@ -432,8 +432,8 @@ export default function CategoriesPage() {
                 className={inputClass}
               >
                 <option value="">Todas</option>
-                <option value="1">Solo con subcategorías</option>
-                <option value="0">Solo sin subcategorías</option>
+                <option value="1">Solo Categorías Padres</option>
+                <option value="0">Solo Subcategorias</option>
               </select>
             </Field>
             <Field label="Estado" className="w-40">

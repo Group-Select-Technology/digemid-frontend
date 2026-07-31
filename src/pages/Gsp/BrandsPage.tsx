@@ -140,6 +140,7 @@ export default function BrandsPage() {
       if (isLastOnPage) setPage(page - 1);
       else fetchBrands(page);
     } catch (err) {
+      setDeleteOpen(false);
       toast.error(extractApiError(err) ?? 'Error al eliminar la marca.');
     } finally {
       setDeleting(false);
