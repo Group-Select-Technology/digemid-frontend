@@ -288,6 +288,7 @@ export interface Product {
   slug: string;
   model: string;
   sku: string;
+  codigoBarra: string | null;
   warranty: string | null;
   datasheetUrl: string | null;
   stock: number;
@@ -318,6 +319,7 @@ export interface CreateProductDto {
   model: string;
   /** Si se omite, la API lo genera automáticamente al crear (formato `GSP-XXXXXXXXXX`). */
   sku?: string;
+  codigoBarra?: string;
   warranty?: string;
   datasheetUrl?: string;
   stock?: number;
@@ -338,6 +340,7 @@ export interface UpdateProductDto {
   slug?: string;
   model?: string;
   sku?: string;
+  codigoBarra?: string;
   warranty?: string;
   datasheetUrl?: string;
   stock?: number;

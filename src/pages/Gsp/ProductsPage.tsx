@@ -259,6 +259,7 @@ export default function ProductsPage() {
             </p>
             <p className="truncate text-xs text-gray-400 dark:text-gray-500">
               SKU: {product.sku}
+              {product.codigoBarra ? ` · Cód. barra: ${product.codigoBarra}` : ''}
             </p>
           </div>
         </div>
@@ -375,7 +376,7 @@ export default function ProductsPage() {
                     setSearchInput(e.target.value);
                     if (!e.target.value.trim() && filters.search) updateFilter('search', '');
                   }}
-                  placeholder="Buscar por nombre o slug..."
+                  placeholder="Buscar por nombre, slug o código de barra..."
                   className={`${inputClass} w-56 pr-8`}
                 />
                 {searchInput && (

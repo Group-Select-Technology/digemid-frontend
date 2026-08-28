@@ -25,6 +25,9 @@ const appendCommonFields = (formData: FormData, dto: CreateProductDto | UpdatePr
   const sku = dto.sku?.trim();
   if (sku) formData.append('sku', sku);
 
+  const codigoBarra = dto.codigoBarra?.trim();
+  if (codigoBarra) formData.append('codigoBarra', codigoBarra);
+
   const warranty = dto.warranty?.trim();
   if (warranty) formData.append('warranty', warranty);
 

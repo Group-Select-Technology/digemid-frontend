@@ -31,6 +31,7 @@ interface ProductForm {
   slug: string;
   model: string;
   sku: string;
+  codigoBarra: string;
   warranty: string;
   datasheetUrl: string;
   stock: string;
@@ -57,6 +58,7 @@ const emptyForm: ProductForm = {
   slug: '',
   model: '',
   sku: '',
+  codigoBarra: '',
   warranty: '',
   datasheetUrl: '',
   stock: '0',
@@ -81,6 +83,7 @@ const toFormState = (product: Product): ProductForm => ({
   slug: product.slug,
   model: product.model,
   sku: product.sku,
+  codigoBarra: product.codigoBarra ?? '',
   warranty: product.warranty ?? '',
   datasheetUrl: product.datasheetUrl ?? '',
   stock: String(product.stock ?? 0),
@@ -256,6 +259,8 @@ export default function ProductFormPage() {
       return 'El slug solo puede contener minúsculas, números y guiones.';
     if (form.sku.trim() && !/^[A-Za-z0-9]+(?:[-_][A-Za-z0-9]+)*$/.test(form.sku.trim()))
       return 'El SKU solo puede contener letras, números, guiones y guiones bajos.';
+    if (form.codigoBarra.trim() && form.codigoBarra.trim().length < 2)
+      return 'El código de barra debe tener al menos 2 caracteres.';
     if (form.warranty.trim() && form.warranty.trim().length < 2)
       return 'La garantía debe tener al menos 2 caracteres.';
     if (form.datasheetUrl.trim()) {
@@ -302,6 +307,7 @@ export default function ProductFormPage() {
           slug: form.slug.trim() || undefined,
           model: form.model.trim(),
           sku: form.sku.trim() || undefined,
+          codigoBarra: form.codigoBarra.trim() || undefined,
           warranty: form.warranty.trim() || undefined,
           datasheetUrl: form.datasheetUrl.trim() || undefined,
           stock: Math.max(0, Math.trunc(toNumber(form.stock))),
@@ -343,6 +349,7 @@ export default function ProductFormPage() {
           slug: form.slug.trim() || undefined,
           model: form.model.trim(),
           sku: form.sku.trim() || undefined,
+          codigoBarra: form.codigoBarra.trim() || undefined,
           warranty: form.warranty.trim() || undefined,
           datasheetUrl: form.datasheetUrl.trim() || undefined,
           stock: Math.max(0, Math.trunc(toNumber(form.stock))),
@@ -570,6 +577,14 @@ export default function ProductFormPage() {
                 Generar nuevo SKU
               </button>
             </div>
+            <TextField
+              label="Código de barra (Opcional)"
+              hint="Código EAN/UPC u otro identificador de barras. Debe ser único si se registra."
+              value={form.codigoBarra}
+              onChange={(value) => update('codigoBarra', value)}
+              placeholder="7891234567895"
+              disabled={saving}
+            />
             <TextAreaField
               label="Descripción"
               required

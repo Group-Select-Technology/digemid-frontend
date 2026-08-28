@@ -163,6 +163,19 @@ export default function ProductDetailModal({
                   </span>
                 </>
               )}
+              {product.codigoBarra && (
+                <>
+                  {' '}
+                  · Cód. barra:{' '}
+                  <CopyableText
+                    value={product.codigoBarra}
+                    label="Código de barra"
+                    className="font-medium text-slate-500 dark:text-slate-300"
+                  >
+                    {product.codigoBarra}
+                  </CopyableText>
+                </>
+              )}
             </p>
           </div>
 
