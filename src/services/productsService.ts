@@ -19,6 +19,18 @@ const appendCommonFields = (formData: FormData, dto: CreateProductDto | UpdatePr
   const slug = dto.slug?.trim();
   if (slug) formData.append('slug', slug);
 
+  if (dto.model !== undefined) formData.append('model', dto.model.trim());
+
+  // Igual que el slug: si el frontend genera y envía un sku, la API lo respeta; si no llega, lo genera ella misma.
+  const sku = dto.sku?.trim();
+  if (sku) formData.append('sku', sku);
+
+  const warranty = dto.warranty?.trim();
+  if (warranty) formData.append('warranty', warranty);
+
+  const datasheetUrl = dto.datasheetUrl?.trim();
+  if (datasheetUrl) formData.append('datasheetUrl', datasheetUrl);
+
   if (dto.stock !== undefined) formData.append('stock', String(dto.stock));
   if (dto.originalPrice !== undefined) formData.append('originalPrice', String(dto.originalPrice));
   if (dto.brandId !== undefined) formData.append('brandId', String(dto.brandId));

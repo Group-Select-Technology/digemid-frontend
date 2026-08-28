@@ -235,15 +235,15 @@ export default function ProductsPage() {
   const confirmTexts =
     confirmType === 'delete'
       ? {
-          title: 'Eliminar Producto',
-          message: `¿Estás seguro de que deseas eliminar "${targetProduct?.name}"? El producto pasará a la papelera.`,
-        }
+        title: 'Eliminar Producto',
+        message: `¿Estás seguro de que deseas eliminar "${targetProduct?.name}"? El producto pasará a la papelera.`,
+      }
       : {
-          title: targetProduct?.isActive ? 'Desactivar Producto' : 'Activar Producto',
-          message: targetProduct?.isActive
-            ? `¿Deseas desactivar "${targetProduct?.name}"? Dejará de mostrarse en la tienda.`
-            : `¿Deseas activar "${targetProduct?.name}"?`,
-        };
+        title: targetProduct?.isActive ? 'Desactivar Producto' : 'Activar Producto',
+        message: targetProduct?.isActive
+          ? `¿Deseas desactivar "${targetProduct?.name}"? Dejará de mostrarse en la tienda.`
+          : `¿Deseas activar "${targetProduct?.name}"?`,
+      };
 
   const columns: Column<Product>[] = [
     {
@@ -256,6 +256,9 @@ export default function ProductsPage() {
             <p className="font-medium text-gray-800 dark:text-white/90">{product.name}</p>
             <p className="truncate text-xs lowercase text-gray-400 dark:text-gray-500">
               /{product.slug}
+            </p>
+            <p className="truncate text-xs text-gray-400 dark:text-gray-500">
+              SKU: {product.sku}
             </p>
           </div>
         </div>
@@ -339,9 +342,9 @@ export default function ProductsPage() {
             }),
             ...(canWrite && !showTrash
               ? [
-                  editAction(() => openEdit(product)),
-                  deleteAction(() => openConfirm(product, 'delete')),
-                ]
+                editAction(() => openEdit(product)),
+                deleteAction(() => openConfirm(product, 'delete')),
+              ]
               : []),
           ]}
         />

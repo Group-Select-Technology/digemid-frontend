@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import toast from 'react-hot-toast';
 import type { Product } from '../../types';
 import { formatCurrency, formatDate, toNumber } from '../../utils/format';
 import { Modal } from '../../components/ui/modal';
@@ -9,6 +10,38 @@ interface ProductDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   product: Product | null;
+}
+
+function CopyableText({
+  value,
+  label,
+  className = '',
+  children,
+}: {
+  value: string;
+  label: string;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(value);
+      toast.success(`${label} copiado al portapapeles`);
+    } catch {
+      toast.error('No se pudo copiar al portapapeles');
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={handleCopy}
+      title={`Clic para copiar ${label.toLowerCase()}`}
+      className={`inline cursor-pointer border-0 bg-transparent p-0 text-left transition hover:text-brand-500 hover:underline hover:underline-offset-2 ${className}`}
+    >
+      {children}
+    </button>
+  );
 }
 
 function SpecCard({ title, items }: { title: string; items: string[] | null | undefined }) {
@@ -107,7 +140,30 @@ export default function ProductDetailModal({
             <p className="text-xl font-bold leading-tight text-gray-800 dark:text-white">
               {product.name}
             </p>
-            <p className="mt-0.5 text-sm text-slate-400">/{product.slug}</p>
+            <p className="mt-0.5 text-sm text-slate-400">
+              <CopyableText value={product.slug} label="Slug">
+                /{product.slug}
+              </CopyableText>
+            </p>
+            <p className="mt-0.5 text-xs text-slate-400">
+              SKU:{' '}
+              <CopyableText
+                value={product.sku}
+                label="SKU"
+                className="font-medium text-slate-500 dark:text-slate-300"
+              >
+                {product.sku}
+              </CopyableText>
+              {product.model && (
+                <>
+                  {' '}
+                  · Modelo:{' '}
+                  <span className="font-medium text-slate-500 dark:text-slate-300">
+                    {product.model}
+                  </span>
+                </>
+              )}
+            </p>
           </div>
 
           <div className="flex flex-wrap gap-1.5">
@@ -195,6 +251,33 @@ export default function ProductDetailModal({
               )}
             </div>
           </div>
+
+          {/* Garantía y ficha técnica, si el producto las tiene registradas */}
+          {(product.warranty || product.datasheetUrl) && (
+            <div className="grid grid-cols-2 gap-2">
+              <div className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 dark:border-slate-700/50 dark:bg-slate-800/40">
+                <p className="text-[11px] text-gray-400 dark:text-slate-400">Garantía</p>
+                <p className="text-sm font-medium text-gray-800 dark:text-white/90">
+                  {product.warranty ?? '—'}
+                </p>
+              </div>
+              <div className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 dark:border-slate-700/50 dark:bg-slate-800/40">
+                <p className="text-[11px] text-gray-400 dark:text-slate-400">Ficha técnica</p>
+                {product.datasheetUrl ? (
+                  <a
+                    href={product.datasheetUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-sm font-medium text-brand-500 underline hover:text-brand-600"
+                  >
+                    Ver documento
+                  </a>
+                ) : (
+                  <p className="text-sm font-medium text-gray-800 dark:text-white/90">—</p>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Descripción debajo de marca y categoría */}
           <div>
