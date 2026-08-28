@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import toast from 'react-hot-toast';
 import { extractApiError } from '../../utils/apiError';
-import { formatCurrency, slugify, toNumber } from '../../utils/format';
+import { formatCurrency, generateSku, slugify, toNumber } from '../../utils/format';
 import { productsService } from '../../services/productsService';
 import { brandsService } from '../../services/brandsService';
 import { categoriesService } from '../../services/categoriesService';
@@ -29,6 +29,11 @@ interface ProductForm {
   name: string;
   description: string;
   slug: string;
+  model: string;
+  sku: string;
+  codigoBarra: string;
+  warranty: string;
+  datasheetUrl: string;
   stock: string;
   originalPrice: string;
   discountPercentage: string;
@@ -51,6 +56,11 @@ const emptyForm: ProductForm = {
   name: '',
   description: '',
   slug: '',
+  model: '',
+  sku: '',
+  codigoBarra: '',
+  warranty: '',
+  datasheetUrl: '',
   stock: '0',
   originalPrice: '',
   discountPercentage: '0',
@@ -71,6 +81,11 @@ const toFormState = (product: Product): ProductForm => ({
   name: product.name,
   description: product.description,
   slug: product.slug,
+  model: product.model,
+  sku: product.sku,
+  codigoBarra: product.codigoBarra ?? '',
+  warranty: product.warranty ?? '',
+  datasheetUrl: product.datasheetUrl ?? '',
   stock: String(product.stock ?? 0),
   originalPrice: String(toNumber(product.originalPrice)),
   discountPercentage: String(toNumber(product.discountPercentage)),
@@ -101,11 +116,21 @@ export default function ProductFormPage() {
   const productFromState = (location.state as { product?: Product } | null)?.product ?? null;
 
   const [product, setProduct] = useState<Product | null>(productFromState);
-  const [form, setForm] = useState<ProductForm>(
-    productFromState ? toFormState(productFromState) : emptyForm
+  const [form, setForm] = useState<ProductForm>(() =>
+    productFromState ? toFormState(productFromState) : { ...emptyForm, sku: generateSku() }
   );
   const [loadingProduct, setLoadingProduct] = useState(isEditing && !productFromState);
   const [loadError, setLoadError] = useState<string | null>(null);
+
+  // El slug se genera solo (como en la API) mientras no se edite manualmente. Al editar un producto
+  // existente arranca "bloqueado" para no reescribir un slug ya publicado por cambiar el nombre;
+  // si el usuario lo vacía, se vuelve a generar automáticamente desde el nombre.
+  const [slugEdited, setSlugEdited] = useState(isEditing);
+
+  useEffect(() => {
+    if (slugEdited) return;
+    setForm((prev) => ({ ...prev, slug: slugify(prev.name) }));
+  }, [form.name, slugEdited]);
 
   const [brands, setBrands] = useState<Brand[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -229,6 +254,23 @@ export default function ProductFormPage() {
     if (form.name.trim().length < 2) return 'El nombre debe tener al menos 2 caracteres.';
     if (form.description.trim().length < 2)
       return 'La descripción debe tener al menos 2 caracteres.';
+    if (form.model.trim().length < 2) return 'El modelo debe tener al menos 2 caracteres.';
+    if (form.slug.trim() && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(form.slug.trim()))
+      return 'El slug solo puede contener minúsculas, números y guiones.';
+    if (form.sku.trim() && !/^[A-Za-z0-9]+(?:[-_][A-Za-z0-9]+)*$/.test(form.sku.trim()))
+      return 'El SKU solo puede contener letras, números, guiones y guiones bajos.';
+    if (form.codigoBarra.trim() && form.codigoBarra.trim().length < 2)
+      return 'El código de barra debe tener al menos 2 caracteres.';
+    if (form.warranty.trim() && form.warranty.trim().length < 2)
+      return 'La garantía debe tener al menos 2 caracteres.';
+    if (form.datasheetUrl.trim()) {
+      try {
+        const url = new URL(form.datasheetUrl.trim());
+        if (!['http:', 'https:'].includes(url.protocol)) throw new Error('protocolo inválido');
+      } catch {
+        return 'La URL de la ficha técnica debe ser válida (http o https).';
+      }
+    }
     if (!form.brandId) return 'Debes seleccionar una marca.';
     if (!form.categoryParentId) return 'Debes seleccionar una categoría.';
     if (subCategories.length > 0 && !form.categorySubId)
@@ -263,6 +305,11 @@ export default function ProductFormPage() {
           name: form.name.trim(),
           description: form.description.trim(),
           slug: form.slug.trim() || undefined,
+          model: form.model.trim(),
+          sku: form.sku.trim() || undefined,
+          codigoBarra: form.codigoBarra.trim() || undefined,
+          warranty: form.warranty.trim() || undefined,
+          datasheetUrl: form.datasheetUrl.trim() || undefined,
           stock: Math.max(0, Math.trunc(toNumber(form.stock))),
           includes: form.includes,
           specifications: form.specifications,
@@ -300,6 +347,11 @@ export default function ProductFormPage() {
           name: form.name.trim(),
           description: form.description.trim(),
           slug: form.slug.trim() || undefined,
+          model: form.model.trim(),
+          sku: form.sku.trim() || undefined,
+          codigoBarra: form.codigoBarra.trim() || undefined,
+          warranty: form.warranty.trim() || undefined,
+          datasheetUrl: form.datasheetUrl.trim() || undefined,
           stock: Math.max(0, Math.trunc(toNumber(form.stock))),
           includes: form.includes,
           specifications: form.specifications,
@@ -327,7 +379,6 @@ export default function ProductFormPage() {
   };
 
   const pageTitle = isEditing ? 'Editar Producto' : 'Nuevo Producto';
-  const slugPreview = form.slug.trim() || slugify(form.name);
 
   if (loadingProduct) {
     return (
@@ -383,8 +434,20 @@ export default function ProductFormPage() {
               <p className="mb-2 text-xs font-medium text-gray-500 dark:text-gray-400">
                 Imágenes actuales
               </p>
+              {/* Si ya se agregaron imágenes nuevas, estas dejan de ser válidas: la API las
+                  reemplaza por completo. Las mostramos atenuadas y sin la etiqueta "Principal"
+                  para no dar la impresión de que ambos sets convivirán. */}
+              {form.images.length > 0 && (
+                <p className="mb-2 text-xs font-medium text-amber-600 dark:text-amber-400">
+                  Se eliminarán al guardar: subiste imágenes nuevas y estas las reemplazan por completo.
+                </p>
+              )}
               {existingImages.length ? (
-                <ul className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+                <ul
+                  className={`grid grid-cols-2 gap-3 sm:grid-cols-5 ${
+                    form.images.length > 0 ? 'opacity-40' : ''
+                  }`}
+                >
                   {existingImages.map((image, index) => (
                     <li
                       key={image.id}
@@ -395,7 +458,7 @@ export default function ProductFormPage() {
                         alt={`${product?.name ?? ''} ${index + 1}`}
                         className="mx-auto h-48 w-auto bg-white object-contain dark:bg-gray-800"
                       />
-                      {index === 0 && (
+                      {index === 0 && form.images.length === 0 && (
                         <span className="absolute left-1 top-1 rounded bg-brand-500 px-1.5 py-0.5 text-[10px] font-medium text-white">
                           Principal
                         </span>
@@ -453,7 +516,7 @@ export default function ProductFormPage() {
             onChange={(images) => update('images', images)}
             hint={
               isEditing
-                ? `Deja esto vacío para conservar las imágenes actuales · hasta ${MAX_IMAGES} imágenes · máx. 5 MB c/u`
+                ? `Deja esto vacío para conservar las imágenes actuales. Si subes al menos una, se reemplaza TODO el set anterior por este (la primera será la nueva principal) · hasta ${MAX_IMAGES} imágenes · máx. 5 MB c/u`
                 : `Hasta ${MAX_IMAGES} imágenes · máx. 5 MB c/u · usa las flechas para ordenarlas`
             }
             disabled={saving}
@@ -462,7 +525,7 @@ export default function ProductFormPage() {
 
         <FormSection
           title="Datos generales"
-          description="Nombre, URL amigable y descripción del producto"
+          description="Nombre, modelo, identificadores y descripción del producto"
         >
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <TextField
@@ -474,11 +537,52 @@ export default function ProductFormPage() {
               disabled={saving}
             />
             <TextField
+              label="Modelo"
+              required
+              value={form.model}
+              onChange={(value) => update('model', value)}
+              placeholder="CBX-1501W"
+              disabled={saving}
+            />
+            <TextField
               label="Slug (Opcional)"
-              hint={slugPreview ? `Se guardará como: /${slugPreview}` : 'Se genera desde el nombre'}
+              hint={
+                form.slug.trim()
+                  ? `Se guardará como: /${form.slug.trim()}`
+                  : 'Se genera automáticamente desde el nombre'
+              }
               value={form.slug}
-              onChange={(value) => update('slug', value)}
+              onChange={(value) => {
+                update('slug', value);
+                setSlugEdited(value.trim().length > 0);
+              }}
               placeholder="impresora-termica-epson-tm-t20iii"
+              disabled={saving}
+            />
+            <div>
+              <TextField
+                label="SKU (Opcional)"
+                hint="Código interno único. Se propone automáticamente y puedes editarlo; si lo dejas vacío, la API genera uno."
+                value={form.sku}
+                onChange={(value) => update('sku', value)}
+                placeholder="GSP-A1B2C3D4E5"
+                disabled={saving}
+              />
+              <button
+                type="button"
+                onClick={() => update('sku', generateSku())}
+                disabled={saving}
+                className="mt-1 text-xs font-medium text-brand-500 transition hover:text-brand-600 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Generar nuevo SKU
+              </button>
+            </div>
+            <TextField
+              label="Código de barra (Opcional)"
+              hint="Código EAN/UPC u otro identificador de barras. Debe ser único si se registra."
+              value={form.codigoBarra}
+              onChange={(value) => update('codigoBarra', value)}
+              placeholder="7891234567895"
               disabled={saving}
             />
             <TextAreaField
@@ -489,6 +593,28 @@ export default function ProductFormPage() {
               value={form.description}
               onChange={(value) => update('description', value)}
               placeholder="Impresora térmica de tickets para punto de venta."
+              disabled={saving}
+            />
+          </div>
+        </FormSection>
+
+        <FormSection
+          title="Garantía y ficha técnica"
+          description="Información adicional de soporte del producto (opcional)"
+        >
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <TextField
+              label="Garantía (Opcional)"
+              value={form.warranty}
+              onChange={(value) => update('warranty', value)}
+              placeholder="36 meses de garantía"
+              disabled={saving}
+            />
+            <TextField
+              label="Ficha técnica · URL (Opcional)"
+              value={form.datasheetUrl}
+              onChange={(value) => update('datasheetUrl', value)}
+              placeholder="https://ejemplo.com/ficha-tecnica.pdf"
               disabled={saving}
             />
           </div>

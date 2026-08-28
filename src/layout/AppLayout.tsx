@@ -14,7 +14,7 @@ const LayoutContent: React.FC = () => {
         <div className="min-h-screen xl:flex">
             <Toaster
                 position="top-right"
-                containerStyle={{ top: '76px' }}
+                containerStyle={{ top: '76px', zIndex: 999999 }}
                 toastOptions={{
                     duration: 3500,
                     style: {

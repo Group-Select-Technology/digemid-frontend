@@ -25,3 +25,9 @@ export const slugify = (value: string): string =>
     .replace(/['"]/g, '')
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
+
+/** Réplica del SKU que genera la API (`GSP-XXXXXXXXXX`), para poder proponerlo desde el frontend. */
+export const generateSku = (): string => {
+  const unique = crypto.randomUUID().replace(/-/g, '').slice(0, 10).toUpperCase();
+  return `GSP-${unique}`;
+};
