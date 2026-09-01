@@ -3,16 +3,14 @@ import { useNavigate } from 'react-router';
 import toast from 'react-hot-toast';
 import { extractApiError } from '../../utils/apiError';
 import { formatCurrency, toNumber } from '../../utils/format';
-import { productsService } from '../../services/productsService';
-import { brandsService } from '../../services/brandsService';
-import { categoriesService } from '../../services/categoriesService';
-import type {
-  Brand,
-  Category,
-  PaginationMeta,
-  Product,
-  ProductPaginationParams,
-} from '../../types';
+import {
+  BUNDLE_TYPE_LABELS,
+  BUNDLE_TYPES,
+  primaryImagePath,
+  uniqueBundleBrands,
+} from '../../utils/bundle';
+import { bundlesService } from '../../services/bundlesService';
+import type { Bundle, BundlePaginationParams, BundleType, PaginationMeta } from '../../types';
 import PageBreadCrumb from '../../components/common/PageBreadCrumb';
 import PageMeta from '../../components/common/PageMeta';
 import DataTable, { type Column } from '../../components/crud/DataTable';
@@ -28,19 +26,16 @@ import { PlusIcon } from '../../icons';
 import CanAccess from '../../components/auth/CanAccess';
 import { useAuth } from '../../context/AuthContext';
 import { GSP_WRITE_ROLES, canWriteGsp } from '../../constants/roles';
-import ProductDetailModal from './ProductDetailModal';
+import BundleDetailModal from './BundleDetailModal';
 
 const PAGE_SIZE = 10;
-const OPTIONS_LIMIT = 100;
 
 type TriState = '' | '0' | '1';
 
 interface Filters {
   search: string;
-  brandId: string;
-  categoryId: string;
+  type: '' | BundleType;
   isActive: TriState;
-  inStock: TriState;
   isFeatured: TriState;
   isBestSeller: TriState;
   hasDiscount: TriState;
@@ -50,10 +45,8 @@ interface Filters {
 
 const emptyFilters: Filters = {
   search: '',
-  brandId: '',
-  categoryId: '',
+  type: '',
   isActive: '',
-  inStock: '',
   isFeatured: '',
   isBestSeller: '',
   hasDiscount: '',
@@ -61,77 +54,70 @@ const emptyFilters: Filters = {
   maxPrice: '',
 };
 
-function ProductThumb({ product }: { product: Product }) {
-  const cover = [...(product.images ?? [])].sort((a, b) => a.order - b.order)[0];
-  if (cover) {
+function BundleThumb({ bundle }: { bundle: Bundle }) {
+  if (bundle.imagePath) {
     return (
       <img
-        src={cover.imagePath}
-        alt={product.name}
+        src={bundle.imagePath}
+        alt={bundle.title}
         className="h-12 w-12 shrink-0 rounded-lg border border-gray-200 object-cover dark:border-gray-700"
       />
     );
   }
   return (
     <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-xs font-semibold text-gray-400 dark:bg-gray-800 dark:text-gray-500">
-      {product.name.charAt(0).toUpperCase()}
+      {bundle.title.charAt(0).toUpperCase()}
     </div>
   );
 }
 
-export default function ProductsPage() {
+export default function BundlesPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const canWrite = canWriteGsp(user?.roleCode);
 
-  const [products, setProducts] = useState<Product[]>([]);
+  const [bundles, setBundles] = useState<Bundle[]>([]);
   const [meta, setMeta] = useState<PaginationMeta | null>(null);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [brands, setBrands] = useState<Brand[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-
-  // Filtros aplicados vs. texto en edición del buscador
   const [filters, setFilters] = useState<Filters>(emptyFilters);
   const [searchInput, setSearchInput] = useState('');
 
   const [detailOpen, setDetailOpen] = useState(false);
-  const [detailProduct, setDetailProduct] = useState<Product | null>(null);
+  const [detailBundle, setDetailBundle] = useState<Bundle | null>(null);
 
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmType, setConfirmType] = useState<'delete' | 'toggle'>('delete');
-  const [targetProduct, setTargetProduct] = useState<Product | null>(null);
+  const [targetBundle, setTargetBundle] = useState<Bundle | null>(null);
   const [confirming, setConfirming] = useState(false);
 
-  const fetchProducts = useCallback(
+  const fetchBundles = useCallback(
     async (pageIndex: number, activeFilters: Filters) => {
       setLoading(true);
       setError(null);
       try {
-        const params: ProductPaginationParams = {
+        const params: BundlePaginationParams = {
           limit: PAGE_SIZE,
           offset: (pageIndex - 1) * PAGE_SIZE,
           isAdminPage: '1',
         };
 
         if (activeFilters.search.trim()) params.search = activeFilters.search.trim();
-        if (activeFilters.brandId) params.brandId = Number(activeFilters.brandId);
-        if (activeFilters.categoryId) params.categoryId = Number(activeFilters.categoryId);
+        if (activeFilters.type) params.type = activeFilters.type;
         if (activeFilters.isActive) params.isActive = activeFilters.isActive;
-        if (activeFilters.inStock) params.inStock = activeFilters.inStock;
         if (activeFilters.isFeatured) params.isFeatured = activeFilters.isFeatured;
         if (activeFilters.isBestSeller) params.isBestSeller = activeFilters.isBestSeller;
         if (activeFilters.hasDiscount) params.hasDiscount = activeFilters.hasDiscount;
         if (activeFilters.minPrice) params.minPrice = toNumber(activeFilters.minPrice);
         if (activeFilters.maxPrice) params.maxPrice = toNumber(activeFilters.maxPrice);
 
-        const response = await productsService.getAll(params);
-        setProducts(response.data);
+        const response = await bundlesService.getAll(params);
+        setBundles(response.data);
         setMeta(response.meta);
       } catch (err) {
-        setError(extractApiError(err) ?? 'Error al cargar los productos.');
+        setError(extractApiError(err) ?? 'Error al cargar los kits, packs y minipacks.');
       } finally {
         setLoading(false);
       }
@@ -139,24 +125,11 @@ export default function ProductsPage() {
     []
   );
 
-  const fetchOptions = useCallback(async () => {
-    const [brandsResult, categoriesResult] = await Promise.allSettled([
-      brandsService.getAll({ limit: OPTIONS_LIMIT }),
-      categoriesService.getAll({ limit: OPTIONS_LIMIT }),
-    ]);
-    if (brandsResult.status === 'fulfilled') setBrands(brandsResult.value.data);
-    if (categoriesResult.status === 'fulfilled') setCategories(categoriesResult.value.data);
-  }, []);
-
   useEffect(() => {
-    fetchProducts(page, filters);
-  }, [page, filters, fetchProducts]);
+    fetchBundles(page, filters);
+  }, [page, filters, fetchBundles]);
 
-  useEffect(() => {
-    fetchOptions();
-  }, [fetchOptions]);
-
-  const refresh = () => fetchProducts(page, filters);
+  const refresh = () => fetchBundles(page, filters);
 
   const updateFilter = <K extends keyof Filters>(key: K, value: Filters[K]) => {
     setPage(1);
@@ -179,47 +152,34 @@ export default function ProductsPage() {
     [filters]
   );
 
-  const brandOptions = useMemo(
-    () => brands.map((brand) => ({ value: String(brand.id), label: brand.name })),
-    [brands]
-  );
+  const openCreate = () => navigate('/gsp/kits/nuevo');
 
-  const categoryOptions = useMemo(
-    () =>
-      categories.map((category) => ({
-        value: String(category.id),
-        label: category.parent ? `${category.parent.name} › ${category.name}` : category.name,
-      })),
-    [categories]
-  );
+  const openEdit = (bundle: Bundle) =>
+    navigate(`/gsp/kits/${bundle.id}/editar`, { state: { bundle } });
 
-  const openCreate = () => navigate('/gsp/productos/nuevo');
-
-  // Enviamos el producto en el state para que el formulario no tenga que volver a consultarlo.
-  const openEdit = (product: Product) =>
-    navigate(`/gsp/productos/${product.id}/editar`, { state: { product } });
-
-  const openConfirm = (product: Product, type: 'delete' | 'toggle') => {
-    setTargetProduct(product);
+  const openConfirm = (bundle: Bundle, type: 'delete' | 'toggle') => {
+    setTargetBundle(bundle);
     setConfirmType(type);
     setConfirmOpen(true);
   };
 
   const handleConfirm = async () => {
-    if (!targetProduct) return;
+    if (!targetBundle) return;
     setConfirming(true);
     try {
       if (confirmType === 'delete') {
-        await productsService.remove(targetProduct.id);
-        toast.success('Producto eliminado correctamente.');
+        await bundlesService.remove(targetBundle.id);
+        toast.success('Registro eliminado correctamente.');
         setConfirmOpen(false);
-        if (products.length === 1 && page > 1) {
+        if (bundles.length === 1 && page > 1) {
           setPage(page - 1);
           return;
         }
       } else {
-        await productsService.update(targetProduct.id, { isActive: !targetProduct.isActive });
-        toast.success(`Producto ${targetProduct.isActive ? 'desactivado' : 'activado'} correctamente.`);
+        await bundlesService.update(targetBundle.id, { isActive: !targetBundle.isActive });
+        toast.success(
+          `Registro ${targetBundle.isActive ? 'desactivado' : 'activado'} correctamente.`
+        );
         setConfirmOpen(false);
       }
       refresh();
@@ -233,73 +193,103 @@ export default function ProductsPage() {
   const confirmTexts =
     confirmType === 'delete'
       ? {
-        title: 'Eliminar Producto',
-        message: `¿Estás seguro de que deseas eliminar "${targetProduct?.name}"? El producto pasará a la papelera.`,
-      }
+          title: 'Eliminar kit / pack',
+          message: `¿Estás seguro de que deseas eliminar "${targetBundle?.title}"? Pasará a la papelera.`,
+        }
       : {
-        title: targetProduct?.isActive ? 'Desactivar Producto' : 'Activar Producto',
-        message: targetProduct?.isActive
-          ? `¿Deseas desactivar "${targetProduct?.name}"? Dejará de mostrarse en la tienda.`
-          : `¿Deseas activar "${targetProduct?.name}"?`,
-      };
+          title: targetBundle?.isActive ? 'Desactivar' : 'Activar',
+          message: targetBundle?.isActive
+            ? `¿Deseas desactivar "${targetBundle?.title}"? Dejará de mostrarse en la tienda.`
+            : `¿Deseas activar "${targetBundle?.title}"?`,
+        };
 
-  const columns: Column<Product>[] = [
+  const columns: Column<Bundle>[] = [
     {
-      header: 'Producto',
-      sortValue: (product) => product.name,
-      render: (product) => (
-        <div className="flex items-center gap-3">
-          <ProductThumb product={product} />
-          <div className="min-w-0">
-            <p className="font-medium text-gray-800 dark:text-white/90">{product.name}</p>
-            <p className="truncate text-xs lowercase text-gray-400 dark:text-gray-500">
-              /{product.slug}
-            </p>
-            <p className="truncate text-xs text-gray-400 dark:text-gray-500">
-              SKU: {product.sku}
-              {product.codigoBarra ? ` · Cód. barra: ${product.codigoBarra}` : ''}
-            </p>
+      header: 'Combo',
+      sortValue: (bundle) => bundle.title,
+      render: (bundle) => {
+        const relatedCovers = bundle.items
+          .map((item) => primaryImagePath(item.product.images))
+          .filter((path): path is string => Boolean(path))
+          .slice(0, 4);
+
+        return (
+          <div className="flex items-center gap-3">
+            <BundleThumb bundle={bundle} />
+            <div className="min-w-0">
+              <p className="font-medium text-gray-800 dark:text-white/90">{bundle.title}</p>
+              <p className="truncate text-xs lowercase text-gray-400 dark:text-gray-500">
+                /{bundle.slug}
+              </p>
+              {relatedCovers.length > 0 && (
+                <div className="mt-1 flex -space-x-1.5">
+                  {relatedCovers.map((src, index) => (
+                    <img
+                      key={`${src}-${index}`}
+                      src={src}
+                      alt=""
+                      className="h-5 w-5 rounded-full border border-white object-cover dark:border-gray-900"
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        );
+      },
+    },
+    {
+      header: 'Tipo',
+      sortValue: (bundle) => bundle.type,
+      render: (bundle) => (
+        <StatusBadge tone="info">{BUNDLE_TYPE_LABELS[bundle.type] ?? bundle.type}</StatusBadge>
       ),
     },
     {
-      header: 'Marca',
-      sortValue: (product) => product.brand?.name ?? '',
-      render: (product) => (
-        <span className="text-sm text-gray-600 dark:text-gray-400">
-          {product.brand?.name ?? '—'}
-        </span>
-      ),
+      header: 'Marcas',
+      sortValue: (bundle) => uniqueBundleBrands(bundle.items).join(', '),
+      render: (bundle) => {
+        const brands = uniqueBundleBrands(bundle.items);
+        if (!brands.length) return <span className="text-sm text-gray-400">—</span>;
+        return (
+          <div className="flex flex-wrap gap-1">
+            {brands.map((brand) => (
+              <StatusBadge key={brand} tone="neutral">
+                {brand}
+              </StatusBadge>
+            ))}
+          </div>
+        );
+      },
     },
     {
-      header: 'Categoría',
-      sortValue: (product) => product.category?.name ?? '',
-      render: (product) => (
+      header: 'Productos',
+      className: 'w-24',
+      sortValue: (bundle) => bundle.items.length,
+      render: (bundle) => (
         <span className="text-sm text-gray-600 dark:text-gray-400">
-          {product.category
-            ? product.category.parent
-              ? `${product.category.parent.name} › ${product.category.name}`
-              : product.category.name
-            : '—'}
+          {bundle.items.length}{' '}
+          <span className="text-xs text-gray-400">
+            · {bundle.items.reduce((sum, item) => sum + item.quantity, 0)} uds
+          </span>
         </span>
       ),
     },
     {
       header: 'Precio',
       className: 'normal-case',
-      sortValue: (product) => toNumber(product.finalPrice),
-      render: (product) => {
+      sortValue: (bundle) => toNumber(bundle.finalPrice),
+      render: (bundle) => {
         const hasDiscount =
-          toNumber(product.discountPercentage) > 0 || toNumber(product.discountCash) > 0;
+          toNumber(bundle.discountPercentage) > 0 || toNumber(bundle.discountCash) > 0;
         return (
           <div>
             <p className="font-medium text-gray-800 dark:text-white/90">
-              {formatCurrency(product.finalPrice)}
+              {formatCurrency(bundle.finalPrice)}
             </p>
             {hasDiscount && (
               <p className="text-xs text-gray-400 line-through">
-                {formatCurrency(product.originalPrice)}
+                {formatCurrency(bundle.originalPrice)}
               </p>
             )}
           </div>
@@ -307,43 +297,35 @@ export default function ProductsPage() {
       },
     },
     {
-      header: 'Stock',
-      className: 'w-20',
-      sortValue: (product) => product.stock,
-      render: (product) => (
-        <StatusBadge tone={product.stock > 0 ? 'info' : 'neutral'}>{product.stock}</StatusBadge>
-      ),
-    },
-    {
       header: 'Estado',
-      render: (product) => (
+      render: (bundle) => (
         <div className="flex flex-wrap gap-1">
           <StatusBadge
-            tone={product.isActive ? 'success' : 'danger'}
-            onClick={canWrite ? () => openConfirm(product, 'toggle') : undefined}
+            tone={bundle.isActive ? 'success' : 'danger'}
+            onClick={canWrite ? () => openConfirm(bundle, 'toggle') : undefined}
             title={canWrite ? 'Cambiar estado' : undefined}
           >
-            {product.isActive ? 'Activo' : 'Inactivo'}
+            {bundle.isActive ? 'Activo' : 'Inactivo'}
           </StatusBadge>
-          {product.isFeatured && <StatusBadge tone="warning">Destacado</StatusBadge>}
-          {product.isBestSeller && <StatusBadge tone="warning">Top ventas</StatusBadge>}
+          {bundle.isFeatured && <StatusBadge tone="warning">Destacado</StatusBadge>}
+          {bundle.isBestSeller && <StatusBadge tone="warning">Top ventas</StatusBadge>}
         </div>
       ),
     },
     {
       header: 'Acciones',
-      render: (product) => (
+      render: (bundle) => (
         <RowActions
           actions={[
             viewAction(() => {
-              setDetailProduct(product);
+              setDetailBundle(bundle);
               setDetailOpen(true);
             }),
             ...(canWrite
               ? [
-                editAction(() => openEdit(product)),
-                deleteAction(() => openConfirm(product, 'delete')),
-              ]
+                  editAction(() => openEdit(bundle)),
+                  deleteAction(() => openConfirm(bundle, 'delete')),
+                ]
               : []),
           ]}
         />
@@ -353,15 +335,18 @@ export default function ProductsPage() {
 
   return (
     <>
-      <PageMeta title="Productos | GSP" description="Gestión de productos del catálogo GSP" />
-      <PageBreadCrumb pageTitle="Productos" />
+      <PageMeta
+        title="Kits y packs | GSP"
+        description="Gestión de kits, packs y minipacks del catálogo GSP"
+      />
+      <PageBreadCrumb pageTitle="Kits, packs y minipacks" />
 
       <CrudCard
-        title="Catálogo de Productos"
+        title="Kits, packs y minipacks"
         subtitle={
           meta
-            ? `${meta.totalItems.toLocaleString()} productos · página ${meta.currentPage} de ${meta.totalPages}`
-            : 'Productos publicados en la tienda GSP'
+            ? `${meta.totalItems.toLocaleString()} registros · página ${meta.currentPage} de ${meta.totalPages}`
+            : 'Agrupaciones de productos publicadas en la tienda GSP'
         }
         actions={
           <>
@@ -374,7 +359,7 @@ export default function ProductsPage() {
                     setSearchInput(e.target.value);
                     if (!e.target.value.trim() && filters.search) updateFilter('search', '');
                   }}
-                  placeholder="Buscar por nombre, slug o código de barra..."
+                  placeholder="Buscar por título o slug..."
                   className={`${inputClass} w-56 pr-8`}
                 />
                 {searchInput && (
@@ -397,37 +382,23 @@ export default function ProductsPage() {
             </form>
             <CanAccess roles={GSP_WRITE_ROLES}>
               <Button size="sm" onClick={openCreate} startIcon={<PlusIcon className="h-4 w-4" />}>
-                Nuevo Producto
+                Nuevo combo
               </Button>
             </CanAccess>
           </>
         }
         filters={
           <>
-            <Field label="Marca" className="w-44">
+            <Field label="Tipo" className="w-40">
               <select
-                value={filters.brandId}
-                onChange={(e) => updateFilter('brandId', e.target.value)}
+                value={filters.type}
+                onChange={(e) => updateFilter('type', e.target.value as Filters['type'])}
                 className={inputClass}
               >
-                <option value="">Todas</option>
-                {brandOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Categoría" className="w-52">
-              <select
-                value={filters.categoryId}
-                onChange={(e) => updateFilter('categoryId', e.target.value)}
-                className={inputClass}
-              >
-                <option value="">Todas</option>
-                {categoryOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
+                <option value="">Todos</option>
+                {BUNDLE_TYPES.map((type) => (
+                  <option key={type} value={type}>
+                    {BUNDLE_TYPE_LABELS[type]}
                   </option>
                 ))}
               </select>
@@ -441,17 +412,6 @@ export default function ProductsPage() {
                 <option value="">Todos</option>
                 <option value="1">Activos</option>
                 <option value="0">Inactivos</option>
-              </select>
-            </Field>
-            <Field label="Stock" className="w-36">
-              <select
-                value={filters.inStock}
-                onChange={(e) => updateFilter('inStock', e.target.value as TriState)}
-                className={inputClass}
-              >
-                <option value="">Todos</option>
-                <option value="1">Con stock</option>
-                <option value="0">Sin stock</option>
               </select>
             </Field>
             <Field label="Destacado" className="w-36">
@@ -515,21 +475,21 @@ export default function ProductsPage() {
       >
         <DataTable
           columns={columns}
-          data={products}
+          data={bundles}
           loading={loading}
           error={error}
-          emptyMessage="No hay productos que coincidan con los filtros."
-          keyExtractor={(product) => product.id}
+          emptyMessage="No hay registros que coincidan con los filtros."
+          keyExtractor={(bundle) => bundle.id}
         />
         {!loading && !error && meta && (
-          <Pagination meta={meta} page={page} onPageChange={setPage} itemLabel="productos" />
+          <Pagination meta={meta} page={page} onPageChange={setPage} itemLabel="registros" />
         )}
       </CrudCard>
 
-      <ProductDetailModal
+      <BundleDetailModal
         isOpen={detailOpen}
         onClose={() => setDetailOpen(false)}
-        product={detailProduct}
+        bundle={detailBundle}
       />
 
       <ConfirmModal

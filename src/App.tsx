@@ -16,6 +16,8 @@ import CategoriesPage from "./pages/Gsp/CategoriesPage";
 import BrandsPage from "./pages/Gsp/BrandsPage";
 import ProductsPage from "./pages/Gsp/ProductsPage";
 import ProductFormPage from "./pages/Gsp/ProductFormPage";
+import BundlesPage from "./pages/Gsp/BundlesPage";
+import BundleFormPage from "./pages/Gsp/BundleFormPage";
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import RoleRoute from "./components/auth/RoleRoute";
@@ -43,12 +45,15 @@ export default function App() {
                                 <Route path="/gsp/categorias" element={<CategoriesPage />} />
                                 <Route path="/gsp/marcas" element={<BrandsPage />} />
                                 <Route path="/gsp/productos" element={<ProductsPage />} />
+                                <Route path="/gsp/kits" element={<BundlesPage />} />
                             </Route>
 
-                            {/* Formulario de productos en página aparte: solo roles con permiso de escritura */}
+                            {/* Formularios GSP en página aparte: solo roles con permiso de escritura */}
                             <Route element={<RoleRoute roles={GSP_WRITE_ROLES} />}>
                                 <Route path="/gsp/productos/nuevo" element={<ProductFormPage />} />
                                 <Route path="/gsp/productos/:id/editar" element={<ProductFormPage />} />
+                                <Route path="/gsp/kits/nuevo" element={<BundleFormPage />} />
+                                <Route path="/gsp/kits/:id/editar" element={<BundleFormPage />} />
                             </Route>
 
                             <Route element={<RoleRoute roles={['ADMIN', 'DESARROLLO', 'SOPORTE']} />}>
