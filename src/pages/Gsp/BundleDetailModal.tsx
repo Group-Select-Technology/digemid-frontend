@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
+import toast from 'react-hot-toast';
 import type { Bundle, BundleItem } from '../../types';
+import { extractApiError } from '../../utils/apiError';
+import { bundlesService } from '../../services/bundlesService';
 import { formatCurrency, formatDate, toNumber } from '../../utils/format';
 import {
   BUNDLE_TYPE_LABELS,
@@ -25,34 +28,76 @@ type GallerySlide =
 export default function BundleDetailModal({ isOpen, onClose, bundle }: BundleDetailModalProps) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [selectedItem, setSelectedItem] = useState<BundleItem | null>(null);
+  const [detail, setDetail] = useState<Bundle | null>(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
 
   useEffect(() => {
     setActiveIndex(0);
     setSelectedItem(null);
   }, [bundle, isOpen]);
 
+  useEffect(() => {
+    if (!isOpen || !bundle) {
+      setDetail(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    (async () => {
+      setLoadingDetail(true);
+      try {
+        const data = await bundlesService.getOne(bundle.id);
+        if (!cancelled) setDetail(data);
+      } catch (err) {
+        if (!cancelled) {
+          setDetail(bundle);
+          toast.error(extractApiError(err) ?? 'No se pudo cargar el detalle del combo.');
+        }
+      } finally {
+        if (!cancelled) setLoadingDetail(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, bundle]);
+
   const slides = useMemo<GallerySlide[]>(() => {
-    if (!bundle) return [];
+    if (!detail) return [];
     return [
-      { kind: 'kit', imagePath: bundle.imagePath || null, label: `${bundle.title} · imagen principal` },
-      ...bundle.items.map((item) => ({
+      { kind: 'kit', imagePath: detail.imagePath || null, label: `${detail.title} · imagen principal` },
+      ...detail.items.map((item) => ({
         kind: 'product' as const,
         imagePath: primaryImagePath(item.product.images),
         label: item.product.name,
       })),
     ];
-  }, [bundle]);
+  }, [detail]);
 
   if (!bundle) return null;
 
+  if (loadingDetail && !detail) {
+    return (
+      <Modal isOpen={isOpen} onClose={onClose} className="max-w-4xl p-5 sm:p-6">
+        <div className="flex h-64 items-center justify-center">
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-brand-500 border-t-transparent" />
+        </div>
+      </Modal>
+    );
+  }
+
+  if (!detail) return null;
+
   const activeSlide = slides[activeIndex] ?? slides[0];
-  const viewerImage = activeSlide?.imagePath ?? bundle.imagePath;
-  const viewerAlt = activeSlide?.label ?? bundle.title;
-  const brands = uniqueBundleBrands(bundle.items);
-  const connections = uniqueBundleConnections(bundle.items);
+  const viewerImage = activeSlide?.imagePath ?? detail.imagePath;
+  const viewerAlt = activeSlide?.label ?? detail.title;
+  const brands = uniqueBundleBrands(detail.items);
+  const connections = uniqueBundleConnections(detail.items);
   const hasDiscount =
-    toNumber(bundle.discountPercentage) > 0 || toNumber(bundle.discountCash) > 0;
-  const totalUnits = bundle.items.reduce((sum, item) => sum + item.quantity, 0);
+    toNumber(detail.discountPercentage) > 0 || toNumber(detail.discountCash) > 0;
+  const totalUnits = detail.items.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
     <>
@@ -65,7 +110,7 @@ export default function BundleDetailModal({ isOpen, onClose, bundle }: BundleDet
         className="max-w-4xl p-5 sm:p-6"
       >
         <h4 className="mb-4 pr-10 text-base font-semibold text-gray-800 dark:text-white">
-          Detalle del {BUNDLE_TYPE_LABELS[bundle.type] ?? 'combo'}
+          Detalle del {BUNDLE_TYPE_LABELS[detail.type] ?? 'combo'}
         </h4>
 
         <div className="grid grid-cols-1 gap-5 md:grid-cols-[240px_1fr] lg:grid-cols-[280px_1fr]">
@@ -124,24 +169,24 @@ export default function BundleDetailModal({ isOpen, onClose, bundle }: BundleDet
           <div className="flex min-w-0 flex-col gap-3">
             <div>
               <p className="text-xl font-bold leading-tight text-gray-800 dark:text-white">
-                {bundle.title}
+                {detail.title}
               </p>
-              <p className="mt-0.5 text-sm text-slate-400">/{bundle.slug}</p>
+              <p className="mt-0.5 text-sm text-slate-400">/{detail.slug}</p>
             </div>
 
             <div className="flex flex-wrap gap-1.5">
               <StatusBadge size="md" tone="info">
-                {BUNDLE_TYPE_LABELS[bundle.type] ?? bundle.type}
+                {BUNDLE_TYPE_LABELS[detail.type] ?? detail.type}
               </StatusBadge>
-              <StatusBadge size="md" tone={bundle.isActive ? 'success' : 'danger'}>
-                {bundle.isActive ? 'Activo' : 'Inactivo'}
+              <StatusBadge size="md" tone={detail.isActive ? 'success' : 'danger'}>
+                {detail.isActive ? 'Activo' : 'Inactivo'}
               </StatusBadge>
-              {bundle.isFeatured && (
+              {detail.isFeatured && (
                 <StatusBadge size="md" tone="warning">
                   Destacado
                 </StatusBadge>
               )}
-              {bundle.isBestSeller && (
+              {detail.isBestSeller && (
                 <StatusBadge size="md" tone="warning">
                   Más vendido
                 </StatusBadge>
@@ -155,17 +200,17 @@ export default function BundleDetailModal({ isOpen, onClose, bundle }: BundleDet
                 </p>
                 <div className="mt-0.5 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
                   <p className="text-2xl font-extrabold leading-none text-emerald-600 dark:text-emerald-400">
-                    {formatCurrency(bundle.finalPrice)}
+                    {formatCurrency(detail.finalPrice)}
                   </p>
                   {hasDiscount && (
                     <>
                       <span className="text-sm text-gray-400 line-through dark:text-slate-500">
-                        {formatCurrency(bundle.originalPrice)}
+                        {formatCurrency(detail.originalPrice)}
                       </span>
                       <span className="text-[11px] text-emerald-700/80 dark:text-emerald-400/80">
-                        {toNumber(bundle.discountPercentage) > 0
-                          ? `−${toNumber(bundle.discountPercentage)}%`
-                          : `−${formatCurrency(bundle.discountCash)}`}
+                        {toNumber(detail.discountPercentage) > 0
+                          ? `−${toNumber(detail.discountPercentage)}%`
+                          : `−${formatCurrency(detail.discountCash)}`}
                       </span>
                     </>
                   )}
@@ -176,7 +221,7 @@ export default function BundleDetailModal({ isOpen, onClose, bundle }: BundleDet
                   Contenido
                 </p>
                 <p className="mt-0.5 text-2xl font-extrabold leading-none text-blue-600 dark:text-blue-400">
-                  {bundle.items.length}
+                  {detail.items.length}
                 </p>
                 <p className="mt-1 text-[11px] text-blue-700/70 dark:text-blue-400/70">
                   productos · {totalUnits} unidades
@@ -223,7 +268,7 @@ export default function BundleDetailModal({ isOpen, onClose, bundle }: BundleDet
                 Descripción
               </p>
               <p className="mt-1 text-sm leading-relaxed text-gray-700 dark:text-slate-200">
-                {bundle.description}
+                {detail.description}
               </p>
             </div>
           </div>
@@ -234,7 +279,7 @@ export default function BundleDetailModal({ isOpen, onClose, bundle }: BundleDet
             Productos del combo
           </p>
           <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            {bundle.items.map((item) => {
+            {detail.items.map((item) => {
               const cover = primaryImagePath(item.product.images);
               return (
                 <li key={item.id}>
@@ -276,18 +321,18 @@ export default function BundleDetailModal({ isOpen, onClose, bundle }: BundleDet
             <div>
               <p className="text-[12px] text-gray-400 dark:text-slate-400">Modificado por</p>
               <p className="text-sm capitalize text-gray-600 dark:text-slate-300">
-                {bundle.user?.fullName ?? 'Sin datos'}
-                {bundle.user?.role ? ` · ${bundle.user.role}` : ''}
+                {detail.user?.fullName ?? 'Sin datos'}
+                {detail.user?.role ? ` · ${detail.user.role}` : ''}
               </p>
             </div>
             <div>
               <p className="text-[12px] text-gray-400 dark:text-slate-400">Creado</p>
-              <p className="text-sm text-gray-600 dark:text-slate-300">{formatDate(bundle.createdAt)}</p>
+              <p className="text-sm text-gray-600 dark:text-slate-300">{formatDate(detail.createdAt)}</p>
             </div>
             <div>
               <p className="text-[12px] text-gray-400 dark:text-slate-400">Actualizado</p>
               <p className="text-sm text-gray-600 dark:text-slate-300">
-                {formatDate(bundle.updatedAt)}
+                {formatDate(detail.updatedAt)}
               </p>
             </div>
           </div>

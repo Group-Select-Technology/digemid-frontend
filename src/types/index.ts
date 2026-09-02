@@ -425,7 +425,7 @@ export interface Bundle {
   createdAt: string;
   updatedAt: string;
   items: BundleItem[];
-  /** Solo viene con `isAdminPage=1`. */
+  /** Solo viene desde `GET /bundles/admin/:id` o con `isAdminPage=1` en el listado. */
   user?: ProductUser;
 }
 

@@ -55,7 +55,8 @@ export const bundlesService = {
   getAll: (params?: BundlePaginationParams) =>
     api.get<BundlesPaginatedResponse>('/bundles', { params }).then((r) => r.data),
 
-  getOne: (id: string) => api.get<Bundle>(`/bundles/${id}`).then((r) => r.data),
+  /** Detalle administrativo: incluye el usuario. Requiere estar autenticado. */
+  getOne: (id: string) => api.get<Bundle>(`/bundles/admin/${id}`).then((r) => r.data),
 
   create: (dto: CreateBundleDto) =>
     api
