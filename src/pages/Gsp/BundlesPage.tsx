@@ -381,7 +381,7 @@ export default function BundlesPage() {
                   </button>
                 )}
               </div>
-              <Button size="sm" variant="outline">
+              <Button type="submit" size="sm" variant="outline">
                 Buscar
               </Button>
             </form>

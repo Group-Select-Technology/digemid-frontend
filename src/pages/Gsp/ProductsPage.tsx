@@ -391,7 +391,7 @@ export default function ProductsPage() {
                   </button>
                 )}
               </div>
-              <Button size="sm" variant="outline">
+              <Button type="submit" size="sm" variant="outline">
                 Buscar
               </Button>
             </form>
