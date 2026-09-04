@@ -374,7 +374,7 @@ export default function ProductsPage() {
                     setSearchInput(e.target.value);
                     if (!e.target.value.trim() && filters.search) updateFilter('search', '');
                   }}
-                  placeholder="Buscar por nombre, slug o código de barra..."
+                  placeholder="Buscar por nombre, slug, SKU o código de barra..."
                   className={`${inputClass} w-56 pr-8`}
                 />
                 {searchInput && (
