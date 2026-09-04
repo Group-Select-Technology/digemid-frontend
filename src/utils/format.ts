@@ -26,6 +26,10 @@ export const slugify = (value: string): string =>
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
 
+/** Slug de subcategoría: nombre del padre + nombre de la hija, para evitar duplicados. */
+export const slugifyCategoryChild = (parentName: string, childName: string): string =>
+  slugify([parentName, childName].filter((part) => part.trim()).join(' '));
+
 /** Réplica del SKU que genera la API (`GSP-XXXXXXXXXX`), para poder proponerlo desde el frontend. */
 export const generateSku = (): string => {
   const unique = crypto.randomUUID().replace(/-/g, '').slice(0, 10).toUpperCase();

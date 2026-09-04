@@ -228,7 +228,7 @@ export interface UpdateCategoryDto extends Partial<CreateCategoryDto> {
 }
 
 export interface CategoryPaginationParams extends PaginationStatusParams {
-  /** `1` = solo padres (incluye `children`), `0` = solo hojas, omitido = todas (incluye `parent`). */
+  /** `1` = solo raíces (con o sin hijas; incluye `children`), `0` = solo subcategorías, omitido = todas. */
   sons?: '0' | '1';
 }
 
@@ -413,6 +413,7 @@ export interface Bundle {
   title: string;
   description: string;
   slug: string;
+  sku: string;
   type: BundleType;
   originalPrice: number | string;
   discountPercentage: number | string;
@@ -438,6 +439,7 @@ export interface CreateBundleDto {
   title: string;
   description: string;
   slug?: string;
+  sku?: string;
   type: BundleType;
   originalPrice: number;
   isFeatured?: boolean;
@@ -450,6 +452,7 @@ export interface UpdateBundleDto {
   title?: string;
   description?: string;
   slug?: string;
+  sku?: string;
   type?: BundleType;
   originalPrice?: number;
   isFeatured?: boolean;

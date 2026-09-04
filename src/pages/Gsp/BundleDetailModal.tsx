@@ -172,6 +172,9 @@ export default function BundleDetailModal({ isOpen, onClose, bundle }: BundleDet
                 {detail.title}
               </p>
               <p className="mt-0.5 text-sm text-slate-400">/{detail.slug}</p>
+              {detail.sku && (
+                <p className="mt-0.5 text-xs text-slate-400">SKU: {detail.sku}</p>
+              )}
             </div>
 
             <div className="flex flex-wrap gap-1.5">

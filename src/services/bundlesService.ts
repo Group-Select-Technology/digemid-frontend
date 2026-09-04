@@ -19,6 +19,9 @@ const appendCommonFields = (formData: FormData, dto: CreateBundleDto | UpdateBun
   const slug = dto.slug?.trim();
   if (slug) formData.append('slug', slug);
 
+  const sku = dto.sku?.trim();
+  if (sku) formData.append('sku', sku);
+
   if (dto.type !== undefined) formData.append('type', dto.type);
   if (dto.originalPrice !== undefined) formData.append('originalPrice', String(dto.originalPrice));
   if (dto.items) formData.append('items', JSON.stringify(dto.items));

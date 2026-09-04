@@ -221,6 +221,11 @@ export default function BundlesPage() {
               <p className="truncate text-xs lowercase text-gray-400 dark:text-gray-500">
                 /{bundle.slug}
               </p>
+              {bundle.sku && (
+                <p className="truncate text-xs text-gray-400 dark:text-gray-500">
+                  SKU: {bundle.sku}
+                </p>
+              )}
               {relatedCovers.length > 0 && (
                 <div className="mt-1 flex -space-x-1.5">
                   {relatedCovers.map((src, index) => (
@@ -359,8 +364,8 @@ export default function BundlesPage() {
                     setSearchInput(e.target.value);
                     if (!e.target.value.trim() && filters.search) updateFilter('search', '');
                   }}
-                  placeholder="Buscar por título o slug..."
-                  className={`${inputClass} w-56 pr-8`}
+                  placeholder="Buscar por título, slug o SKU..."
+                  className={`${inputClass} w-72 pr-8`}
                 />
                 {searchInput && (
                   <button
