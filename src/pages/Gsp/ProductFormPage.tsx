@@ -525,7 +525,7 @@ export default function ProductFormPage() {
 
         <FormSection
           title="Datos generales"
-          description="Nombre, modelo, identificadores y descripción del producto"
+          description="Nombre, modelo, URL y descripción del producto"
         >
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <TextField
@@ -559,9 +559,27 @@ export default function ProductFormPage() {
               placeholder="impresora-termica-epson-tm-t20iii"
               disabled={saving}
             />
+            <TextAreaField
+              label="Descripción"
+              required
+              rows={4}
+              className="lg:col-span-2"
+              value={form.description}
+              onChange={(value) => update('description', value)}
+              placeholder="Impresora térmica de tickets para punto de venta."
+              disabled={saving}
+            />
+          </div>
+        </FormSection>
+
+        <FormSection
+          title="Identificadores"
+          description="El producto se puede identificar por SKU o por código de barra. Ambos son únicos y se pueden usar para buscarlo."
+        >
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <div>
               <TextField
-                label="SKU (Opcional)"
+                label="SKU"
                 hint="Código interno único. Se propone automáticamente y puedes editarlo; si lo dejas vacío, la API genera uno."
                 value={form.sku}
                 onChange={(value) => update('sku', value)}
@@ -578,21 +596,11 @@ export default function ProductFormPage() {
               </button>
             </div>
             <TextField
-              label="Código de barra (Opcional)"
-              hint="Código EAN/UPC u otro identificador de barras. Debe ser único si se registra."
+              label="Código de barra"
+              hint="Identificador EAN/UPC u otro código de barras. Debe ser único si se registra."
               value={form.codigoBarra}
               onChange={(value) => update('codigoBarra', value)}
               placeholder="7891234567895"
-              disabled={saving}
-            />
-            <TextAreaField
-              label="Descripción"
-              required
-              rows={4}
-              className="lg:col-span-2"
-              value={form.description}
-              onChange={(value) => update('description', value)}
-              placeholder="Impresora térmica de tickets para punto de venta."
               disabled={saving}
             />
           </div>

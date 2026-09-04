@@ -11,6 +11,7 @@ import {
   ShoppingBagIcon,
   Squares2X2Icon,
   TagIcon,
+  RectangleGroupIcon,
 } from "@heroicons/react/24/outline";
 import type { ReactNode } from "react";
 import { useAuth } from "../context/AuthContext";
@@ -64,6 +65,14 @@ const NAV_ENTRIES: NavEntry[] = [
     path: "/gsp/productos",
     keywords: ["gsp", "productos", "tienda", "catalogo", "stock", "precios"],
     icon: <ShoppingBagIcon className="w-4 h-4" />,
+    roles: GSP_VIEW_ROLES,
+  },
+  {
+    label: "Kits y packs GSP",
+    description: "Kits, packs y minipacks del catálogo GSP",
+    path: "/gsp/kits",
+    keywords: ["gsp", "kits", "packs", "minipacks", "combos", "tienda", "catalogo"],
+    icon: <RectangleGroupIcon className="w-4 h-4" />,
     roles: GSP_VIEW_ROLES,
   },
   {

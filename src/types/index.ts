@@ -10,7 +10,7 @@ export interface AuthUser {
 // ---- Roles ----
 /** Roles del panel interno (DIGEMID, Select POS, Cobranzas, gestión de usuarios). */
 export type CoreRoleCode = 'ADMIN' | 'SOPORTE' | 'DESARROLLO';
-/** Roles de la tienda GSP: solo ven el catálogo (categorías, marcas y productos). */
+/** Roles de la tienda GSP: solo ven el catálogo (categorías, marcas, productos y kits). */
 export type GspRoleCode = 'ADMIN_GSP' | 'ASESOR_GSP' | 'SOPORTE_GSP';
 
 export type RoleCode = CoreRoleCode | GspRoleCode;
@@ -380,3 +380,100 @@ export interface ProductPaginationParams extends PaginationParams {
 }
 
 export type ProductsPaginatedResponse = PaginatedResponse<Product>;
+
+// ---- GSP · Bundles (kits, packs y minipacks) ----
+export type BundleType = 'KIT' | 'PACKS' | 'MINIPACKS' | 'SUPERPACKS' | 'COMBOS';
+
+export interface BundleProductImage {
+  imagePath: string;
+  order: number;
+}
+
+export interface BundleProduct {
+  id: string;
+  name: string;
+  description: string;
+  slug?: string;
+  codigoBarra?: string | null;
+  model: string;
+  connections: string[] | null;
+  /** Nombre de la marca; la API ya lo aplana a string. */
+  brand: string;
+  images: BundleProductImage[];
+}
+
+export interface BundleItem {
+  id: number;
+  product: BundleProduct;
+  quantity: number;
+}
+
+export interface Bundle {
+  id: string;
+  title: string;
+  description: string;
+  slug: string;
+  type: BundleType;
+  originalPrice: number | string;
+  discountPercentage: number | string;
+  discountCash: number | string;
+  finalPrice: number | string;
+  isFeatured: boolean;
+  isBestSeller: boolean;
+  imagePath: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  items: BundleItem[];
+  /** Solo viene desde `GET /bundles/admin/:id` o con `isAdminPage=1` en el listado. */
+  user?: ProductUser;
+}
+
+export interface CreateBundleItemDto {
+  id: string;
+  quantity: number;
+}
+
+export interface CreateBundleDto {
+  title: string;
+  description: string;
+  slug?: string;
+  type: BundleType;
+  originalPrice: number;
+  isFeatured?: boolean;
+  isBestSeller?: boolean;
+  items: CreateBundleItemDto[];
+  image: File;
+}
+
+export interface UpdateBundleDto {
+  title?: string;
+  description?: string;
+  slug?: string;
+  type?: BundleType;
+  originalPrice?: number;
+  isFeatured?: boolean;
+  isBestSeller?: boolean;
+  isActive?: boolean;
+  discountPercentage?: number;
+  discountCash?: number;
+  items?: CreateBundleItemDto[];
+  image?: File;
+}
+
+export interface BundlePaginationParams extends PaginationParams {
+  isActive?: '0' | '1';
+  isBestSeller?: '0' | '1';
+  isFeatured?: '0' | '1';
+  hasDiscount?: '0' | '1';
+  minPrice?: number;
+  maxPrice?: number;
+  search?: string;
+  type?: BundleType;
+  /** Solo acepta `'1'`: devuelve únicamente los bundles eliminados. */
+  withDeleted?: '1';
+  /** Solo acepta `'1'`: incluye el usuario que registró cada bundle. */
+  isAdminPage?: '1';
+}
+
+export type BundlesPaginatedResponse = PaginatedResponse<Bundle>;

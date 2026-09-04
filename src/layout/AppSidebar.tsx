@@ -20,6 +20,7 @@ import {
     Squares2X2Icon,
     TagIcon,
     ShoppingBagIcon,
+    RectangleGroupIcon,
     UserIcon,
     UsersIcon,
 } from "@heroicons/react/24/outline";
@@ -73,6 +74,12 @@ const navItems: NavItem[] = [
                 icon: <ShoppingBagIcon className="w-4 h-4" />,
                 name: "Productos",
                 path: "/gsp/productos",
+                roles: GSP_VIEW_ROLES,
+            },
+            {
+                icon: <RectangleGroupIcon className="w-4 h-4" />,
+                name: "Kits y packs",
+                path: "/gsp/kits",
                 roles: GSP_VIEW_ROLES,
             },
         ],
@@ -151,7 +158,9 @@ const AppSidebar: React.FC = () => {
 
     // const isActive = (path: string) => location.pathname === path;
     const isActive = useCallback(
-        (path: string) => location.pathname === path,
+        (path: string) =>
+            location.pathname === path ||
+            (path !== '/' && location.pathname.startsWith(`${path}/`)),
         [location.pathname]
     );
 

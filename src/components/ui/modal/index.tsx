@@ -7,6 +7,8 @@ interface ModalProps {
   children: React.ReactNode;
   showCloseButton?: boolean; // New prop to control close button visibility
   isFullscreen?: boolean; // Default to false for backwards compatibility
+  /** Superpone este modal sobre otro ya abierto (mismo overlay a mayor z-index). */
+  nested?: boolean;
 }
 
 export const Modal: React.FC<ModalProps> = ({
@@ -16,6 +18,7 @@ export const Modal: React.FC<ModalProps> = ({
   className,
   showCloseButton = true, // Default to true for backwards compatibility
   isFullscreen = false,
+  nested = false,
 }) => {
   const modalRef = useRef<HTMLDivElement>(null);
 
@@ -36,6 +39,8 @@ export const Modal: React.FC<ModalProps> = ({
   }, [isOpen, onClose]);
 
   useEffect(() => {
+    if (nested) return;
+
     if (isOpen) {
       document.body.style.overflow = "hidden";
     } else {
@@ -45,7 +50,7 @@ export const Modal: React.FC<ModalProps> = ({
     return () => {
       document.body.style.overflow = "unset";
     };
-  }, [isOpen]);
+  }, [isOpen, nested]);
 
   if (!isOpen) return null;
 
@@ -54,7 +59,7 @@ export const Modal: React.FC<ModalProps> = ({
     : "relative w-full rounded-3xl bg-white  dark:bg-gray-900";
 
   return (
-    <div className="fixed inset-0 z-99999 overflow-y-auto">
+    <div className={`fixed inset-0 overflow-y-auto ${nested ? 'z-[100000]' : 'z-99999'}`}>
       {!isFullscreen && (
         <div
           className="fixed inset-0 h-full w-full bg-gray-400/50 backdrop-blur-[32px]"

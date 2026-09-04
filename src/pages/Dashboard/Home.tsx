@@ -8,12 +8,14 @@ import { peopleService } from '../../services/peopleService';
 import { categoriesService } from '../../services/categoriesService';
 import { brandsService } from '../../services/brandsService';
 import { productsService } from '../../services/productsService';
+import { bundlesService } from '../../services/bundlesService';
 import { isGspRole } from '../../constants/roles';
 import { BoxIcon, GroupIcon, UserIcon, DownloadIcon, ArrowRightIcon } from '../../icons';
 import {
   ShoppingBagIcon,
   Squares2X2Icon,
   TagIcon,
+  RectangleGroupIcon,
 } from '@heroicons/react/24/outline';
 
 interface Stats {
@@ -23,6 +25,7 @@ interface Stats {
   totalCategories: number | null;
   totalBrands: number | null;
   totalProducts: number | null;
+  totalBundles: number | null;
 }
 
 const emptyStats: Stats = {
@@ -32,6 +35,7 @@ const emptyStats: Stats = {
   totalCategories: null,
   totalBrands: null,
   totalProducts: null,
+  totalBundles: null,
 };
 
 // ── Stat card ────────────────────────────────────────────────────────────────
@@ -110,7 +114,7 @@ export default function Home() {
 
   const fetchStats = useCallback(async () => {
     setLoading(true);
-    const [digemidRes, usersRes, peopleRes, categoriesRes, brandsRes, productsRes] =
+    const [digemidRes, usersRes, peopleRes, categoriesRes, brandsRes, productsRes, bundlesRes] =
       await Promise.allSettled([
         canSeeDigemid ? digemidService.getAll({ limit: 1, offset: 0 }) : Promise.resolve(null),
         canSeeUsersAndPeople ? usersService.getAll({ limit: 500 }) : Promise.resolve(null),
@@ -118,6 +122,7 @@ export default function Home() {
         categoriesService.getAll({ limit: 1, offset: 0 }),
         brandsService.getAll({ limit: 1, offset: 0 }),
         productsService.getAll({ limit: 1, offset: 0 }),
+        bundlesService.getAll({ limit: 1, offset: 0 }),
       ]);
 
     setStats({
@@ -137,6 +142,7 @@ export default function Home() {
         categoriesRes.status === 'fulfilled' ? categoriesRes.value.meta.totalItems : null,
       totalBrands: brandsRes.status === 'fulfilled' ? brandsRes.value.meta.totalItems : null,
       totalProducts: productsRes.status === 'fulfilled' ? productsRes.value.meta.totalItems : null,
+      totalBundles: bundlesRes.status === 'fulfilled' ? bundlesRes.value.meta.totalItems : null,
     });
     setLoading(false);
   }, [canSeeDigemid, canSeeUsersAndPeople]);
@@ -190,6 +196,15 @@ export default function Home() {
           colorClass="bg-brand-50 dark:bg-brand-500/10"
           link="/gsp/productos"
           linkLabel="Gestionar productos"
+        />
+        <StatCard
+          title="Kits y packs GSP"
+          value={stats.totalBundles}
+          loading={loading}
+          icon={<RectangleGroupIcon className="w-5 h-5 text-violet-600 dark:text-violet-400" />}
+          colorClass="bg-violet-50 dark:bg-violet-500/10"
+          link="/gsp/kits"
+          linkLabel="Gestionar kits"
         />
         <StatCard
           title="Categorías GSP"
@@ -257,6 +272,11 @@ export default function Home() {
             to="/gsp/productos"
             label="Productos GSP"
             icon={<ShoppingBagIcon className="w-4 h-4" />}
+          />
+          <QuickLink
+            to="/gsp/kits"
+            label="Kits y packs GSP"
+            icon={<RectangleGroupIcon className="w-4 h-4" />}
           />
           <QuickLink
             to="/gsp/categorias"
