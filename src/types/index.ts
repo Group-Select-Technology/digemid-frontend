@@ -480,3 +480,48 @@ export interface BundlePaginationParams extends PaginationParams {
 }
 
 export type BundlesPaginatedResponse = PaginatedResponse<Bundle>;
+
+// ---- GSP · Soporte (modelos y drivers) ----
+export interface SupportCategorySummary {
+  id: number;
+  name: string;
+}
+
+export interface SupportDriver {
+  id: number;
+  name: string;
+  fileUrl: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SupportModel {
+  id: number;
+  name: string;
+  order: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  category: SupportCategorySummary | null;
+  drivers: SupportDriver[];
+}
+
+export interface CreateSupportDriverDto {
+  name: string;
+  fileUrl: string;
+}
+
+export interface CreateSupportDto {
+  name: string;
+  order: number;
+  categoryId: number;
+  drivers: CreateSupportDriverDto[];
+}
+
+export interface SupportPaginationParams extends PaginationStatusParams {
+  /** Búsqueda por coincidencia en el nombre del modelo. */
+  search?: string;
+}
+
+export type SupportPaginatedResponse = PaginatedResponse<SupportModel>;
