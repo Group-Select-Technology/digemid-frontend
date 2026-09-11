@@ -20,6 +20,7 @@ import {
 import TagsInput from '../../components/crud/TagsInput';
 import ImageDropzone from '../../components/crud/ImageDropzone';
 import Button from '../../components/ui/button/Button';
+import { useSortableReorder } from '../../hooks/useSortableReorder';
 
 const MAX_IMAGES = 5;
 const OPTIONS_LIMIT = 100;
@@ -238,6 +239,12 @@ export default function ProductFormPage() {
   // Si la categoría raíz seleccionada tiene subcategorías, la categoría final del producto es la
   // subcategoría; de lo contrario, la propia raíz.
   const categoryId = subCategories.length > 0 ? form.categorySubId : form.categoryParentId;
+  const remainingImageSlots = isEditing
+    ? Math.max(0, MAX_IMAGES - existingImages.length)
+    : MAX_IMAGES;
+  const canReorderExisting = !saving && existingImages.length > 1;
+  const { getItemProps: getExistingItemProps, itemClassName: existingItemClassName } =
+    useSortableReorder(canReorderExisting);
 
   const handleParentCategoryChange = (value: string) =>
     setForm((prev) => ({ ...prev, categoryParentId: value, categorySubId: '' }));
@@ -282,6 +289,8 @@ export default function ProductFormPage() {
     if (!isEditing && form.images.length === 0) return 'Debes subir al menos una imagen.';
     if (isEditing && form.images.length === 0 && existingImages.length === 0)
       return 'El producto debe conservar al menos una imagen.';
+    if ((isEditing ? existingImages.length : 0) + form.images.length > MAX_IMAGES)
+      return `Puedes tener hasta ${MAX_IMAGES} imágenes.`;
     if (discountPercentage < 0 || discountPercentage > 100)
       return 'El porcentaje de descuento debe estar entre 0 y 100.';
     return null;
@@ -323,21 +332,21 @@ export default function ProductFormPage() {
           categoryId: Number(categoryId),
         };
         if (form.connections.length) payload.connections = form.connections;
-        // Si se subieron imágenes nuevas, la API reemplaza por completo el set anterior.
+        // Las nuevas se agregan a las actuales. imagesOrder indica cuáles existentes conservar y en qué orden.
         if (form.images.length) {
           payload.images = form.images;
-        } else {
-          // Si no hay imágenes nuevas, enviamos el set final (reordenado y/o con eliminaciones)
-          // solo si cambió respecto al original; las que ya no aparecen aquí se eliminan en la API.
+        }
+        if (existingImages.length) {
           const originalOrder = (product.images ?? [])
             .slice()
             .sort((a, b) => a.order - b.order)
             .map((image) => image.id);
           const currentOrder = existingImages.map((image) => image.id);
-          const changed =
+          const orderChanged =
             currentOrder.length !== originalOrder.length ||
             currentOrder.some((imageId, index) => imageId !== originalOrder[index]);
-          if (changed) payload.imagesOrder = currentOrder;
+          // Si hay archivos nuevos, hay que enviar el set actual para que la API no asuma otro orden.
+          if (form.images.length || orderChanged) payload.imagesOrder = currentOrder;
         }
 
         await productsService.update(product.id, payload);
@@ -425,7 +434,7 @@ export default function ProductFormPage() {
           title="Imágenes"
           description={
             isEditing
-              ? 'Si subes imágenes nuevas, reemplazan por completo a las actuales. Usa las flechas para cambiar el orden o la ✕ para eliminar una, sin volver a subirlas.'
+              ? 'Puedes reordenar arrastrando las fotos, o quitarlas y agregar más sin perder las que ya están subidas. La primera de la lista es la principal.'
               : `Hasta ${MAX_IMAGES} imágenes · la primera será la principal`
           }
         >
@@ -433,32 +442,24 @@ export default function ProductFormPage() {
             <div className="mb-4">
               <p className="mb-2 text-xs font-medium text-gray-500 dark:text-gray-400">
                 Imágenes actuales
+                {canReorderExisting ? ' · arrastra una foto para cambiar el orden' : ''}
               </p>
-              {/* Si ya se agregaron imágenes nuevas, estas dejan de ser válidas: la API las
-                  reemplaza por completo. Las mostramos atenuadas y sin la etiqueta "Principal"
-                  para no dar la impresión de que ambos sets convivirán. */}
-              {form.images.length > 0 && (
-                <p className="mb-2 text-xs font-medium text-amber-600 dark:text-amber-400">
-                  Se eliminarán al guardar: subiste imágenes nuevas y estas las reemplazan por completo.
-                </p>
-              )}
               {existingImages.length ? (
-                <ul
-                  className={`grid grid-cols-2 gap-3 sm:grid-cols-5 ${
-                    form.images.length > 0 ? 'opacity-40' : ''
-                  }`}
-                >
+                <ul className="grid grid-cols-2 gap-3 sm:grid-cols-5">
                   {existingImages.map((image, index) => (
                     <li
                       key={image.id}
-                      className="relative overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700"
+                      {...getExistingItemProps(index, moveExistingImage)}
+                      title={canReorderExisting ? 'Arrastra para cambiar el orden' : undefined}
+                      className={`relative overflow-hidden rounded-lg border border-gray-200 transition dark:border-gray-700 ${existingItemClassName(index)}`}
                     >
                       <img
                         src={image.imagePath}
                         alt={`${product?.name ?? ''} ${index + 1}`}
-                        className="mx-auto h-48 w-auto bg-white object-contain dark:bg-gray-800"
+                        draggable={false}
+                        className="pointer-events-none mx-auto h-48 w-auto bg-white object-contain dark:bg-gray-800"
                       />
-                      {index === 0 && form.images.length === 0 && (
+                      {index === 0 && (
                         <span className="absolute left-1 top-1 rounded bg-brand-500 px-1.5 py-0.5 text-[10px] font-medium text-white">
                           Principal
                         </span>
@@ -466,7 +467,8 @@ export default function ProductFormPage() {
                       <button
                         type="button"
                         onClick={() => removeExistingImage(image.id)}
-                        disabled={saving || form.images.length > 0 || existingImages.length === 1}
+                        onMouseDown={(event) => event.stopPropagation()}
+                        disabled={saving || (existingImages.length === 1 && form.images.length === 0)}
                         title="Eliminar imagen"
                         className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-xs text-white transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-30"
                       >
@@ -480,7 +482,8 @@ export default function ProductFormPage() {
                           <button
                             type="button"
                             onClick={() => moveExistingImage(index, index - 1)}
-                            disabled={saving || form.images.length > 0 || index === 0}
+                            onMouseDown={(event) => event.stopPropagation()}
+                            disabled={saving || index === 0}
                             title="Mover antes"
                             className="rounded px-1 text-xs text-gray-500 transition hover:text-brand-500 disabled:opacity-30"
                           >
@@ -489,9 +492,8 @@ export default function ProductFormPage() {
                           <button
                             type="button"
                             onClick={() => moveExistingImage(index, index + 1)}
-                            disabled={
-                              saving || form.images.length > 0 || index === existingImages.length - 1
-                            }
+                            onMouseDown={(event) => event.stopPropagation()}
+                            disabled={saving || index === existingImages.length - 1}
                             title="Mover después"
                             className="rounded px-1 text-xs text-gray-500 transition hover:text-brand-500 disabled:opacity-30"
                           >
@@ -507,20 +509,27 @@ export default function ProductFormPage() {
               )}
             </div>
           )}
-          <ImageDropzone
-            label={isEditing ? 'Reemplazar imágenes (opcional)' : 'Imágenes del producto'}
-            required={!isEditing}
-            reorderable
-            maxFiles={MAX_IMAGES}
-            files={form.images}
-            onChange={(images) => update('images', images)}
-            hint={
-              isEditing
-                ? `Deja esto vacío para conservar las imágenes actuales. Si subes al menos una, se reemplaza TODO el set anterior por este (la primera será la nueva principal) · hasta ${MAX_IMAGES} imágenes · máx. 5 MB c/u`
-                : `Hasta ${MAX_IMAGES} imágenes · máx. 5 MB c/u · usa las flechas para ordenarlas`
-            }
-            disabled={saving}
-          />
+          {remainingImageSlots > 0 ? (
+            <ImageDropzone
+              label={isEditing ? 'Agregar imágenes (opcional)' : 'Imágenes del producto'}
+              required={!isEditing}
+              reorderable
+              showPrimaryBadge={!isEditing || existingImages.length === 0}
+              maxFiles={remainingImageSlots}
+              files={form.images}
+              onChange={(images) => update('images', images)}
+              hint={
+                isEditing
+                  ? `Se agregan a las actuales, no las reemplazan · quedan ${remainingImageSlots} de ${MAX_IMAGES} · máx. 5 MB c/u`
+                  : `Hasta ${MAX_IMAGES} imágenes · máx. 5 MB c/u · arrastra para ordenarlas`
+              }
+              disabled={saving}
+            />
+          ) : (
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Alcanzaste el máximo de {MAX_IMAGES} imágenes. Elimina una actual para agregar otra.
+            </p>
+          )}
         </FormSection>
 
         <FormSection

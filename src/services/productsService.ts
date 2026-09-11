@@ -71,11 +71,10 @@ const buildUpdateFormData = (dto: UpdateProductDto): FormData => {
     formData.append('discountPercentage', String(dto.discountPercentage));
   if (dto.discountCash !== undefined) formData.append('discountCash', String(dto.discountCash));
 
-  // Si se envían imágenes nuevas, la API reemplaza por completo el set anterior.
+  // Las imágenes nuevas se agregan a las existentes; `imagesOrder` indica cuáles conservar y en qué orden.
   dto.images?.forEach((image) => formData.append('images', image));
 
-  // Solo se aplica cuando NO se envían imágenes nuevas: reordena las existentes sin re-subirlas.
-  if (!dto.images?.length && dto.imagesOrder?.length)
+  if (dto.imagesOrder?.length)
     formData.append('imagesOrder', JSON.stringify(dto.imagesOrder));
 
   return formData;

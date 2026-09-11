@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { extractApiError } from '../../utils/apiError';
-import { formatDate, slugify } from '../../utils/format';
+import { formatDate, slugify, slugifyCategoryChild } from '../../utils/format';
 import { categoriesService } from '../../services/categoriesService';
 import type {
   Category,
@@ -39,6 +39,7 @@ const PARENT_OPTIONS_LIMIT = 100;
 
 type SonsFilter = '' | '0' | '1';
 type StatusFilter = '' | '0' | '1';
+type FormKind = 'create-root' | 'create-child' | 'edit-root' | 'edit-child';
 
 interface CategoryForm {
   name: string;
@@ -87,7 +88,7 @@ export default function CategoriesPage() {
   const [error, setError] = useState<string | null>(null);
 
   // Filtros
-  const [sonsFilter, setSonsFilter] = useState<SonsFilter>('');
+  const [sonsFilter, setSonsFilter] = useState<SonsFilter>('1');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('');
 
   // Opciones del select de categoría padre
@@ -95,10 +96,10 @@ export default function CategoriesPage() {
 
   // Modal de formulario
   const [formOpen, setFormOpen] = useState(false);
+  const [formKind, setFormKind] = useState<FormKind>('create-root');
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [formParent, setFormParent] = useState<Category | null>(null);
   const [form, setForm] = useState<CategoryForm>(emptyForm);
-  /** Padre con el que se abrió el formulario: solo enviamos `parentId` si cambia. */
-  const [initialParentId, setInitialParentId] = useState('');
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -164,38 +165,59 @@ export default function CategoriesPage() {
     apply();
   };
 
-  const parentSelectOptions = useMemo(
-    () =>
-      parentOptions
-        .filter((option) => option.id !== editingCategory?.id)
-        .map((option) => ({ value: String(option.id), label: option.name })),
-    [parentOptions, editingCategory]
-  );
+  const isChildForm = formKind === 'create-child' || formKind === 'edit-child';
+
+  const resolveParent = (category: Category) => {
+    const fromOptions = parentOptions.find((option) => option.id === category.id);
+    return category.parent ?? fromOptions?.parent ?? null;
+  };
 
   const openCreate = () => {
+    setFormKind('create-root');
     setEditingCategory(null);
+    setFormParent(null);
     setForm(emptyForm);
-    setInitialParentId('');
     setFormError(null);
     setFormOpen(true);
   };
 
-  const openEdit = (category: Category) => {
-    // El listado con `sons=1` no trae `parent`, así que lo resolvemos desde la lista completa.
-    const fromOptions = parentOptions.find((option) => option.id === category.id);
-    const parent = category.parent ?? fromOptions?.parent ?? null;
-    const parentId = parent ? String(parent.id) : '';
+  const openCreateChild = (parent: Category) => {
+    setFormKind('create-child');
+    setEditingCategory(null);
+    setFormParent(parent);
+    setForm({ ...emptyForm, parentId: String(parent.id) });
+    setFormError(null);
+    setDetailOpen(false);
+    setFormOpen(true);
+  };
 
+  const openEdit = (category: Category) => {
+    const parent = resolveParent(category);
+    const parentCategory = parent
+      ? (parentOptions.find((option) => option.id === parent.id) ??
+        ({
+          id: parent.id,
+          name: parent.name,
+          slug: parent.slug,
+          description: null,
+          imagePath: parent.imagePath,
+          isActive: parent.isActive,
+          createdAt: '',
+          updatedAt: '',
+        } satisfies Category))
+      : null;
+
+    setFormKind(parent ? 'edit-child' : 'edit-root');
     setEditingCategory(category);
+    setFormParent(parentCategory);
     setForm({
       name: category.name,
       description: category.description ?? '',
       slug: category.slug ?? '',
-      parentId,
+      parentId: parent ? String(parent.id) : '',
       isActive: category.isActive,
       file: [],
     });
-    setInitialParentId(parentId);
     setFormError(null);
     setFormOpen(true);
   };
@@ -206,13 +228,21 @@ export default function CategoriesPage() {
       return;
     }
 
+    const childSlug =
+      formParent && isChildForm
+        ? slugifyCategoryChild(formParent.name, form.name)
+        : form.slug.trim() || undefined;
+
     const payload: CreateCategoryDto = {
       name: form.name.trim(),
       description: form.description.trim() || undefined,
-      slug: form.slug.trim() || undefined,
-      parentId: form.parentId ? Number(form.parentId) : null,
+      slug: childSlug,
       file: form.file[0] ?? null,
     };
+
+    if (formKind === 'create-child' && formParent) {
+      payload.parentId = formParent.id;
+    }
 
     setSaving(true);
     setFormError(null);
@@ -220,14 +250,18 @@ export default function CategoriesPage() {
       if (editingCategory) {
         await categoriesService.update(editingCategory.id, {
           ...payload,
-          // Omitido si no cambió, para no reasignar el padre por accidente.
-          parentId: form.parentId === initialParentId ? undefined : payload.parentId,
           isActive: form.isActive,
         });
-        toast.success('Categoría actualizada correctamente.');
+        toast.success(
+          isChildForm ? 'Subcategoría actualizada correctamente.' : 'Categoría actualizada correctamente.'
+        );
       } else {
         await categoriesService.create(payload);
-        toast.success('Categoría creada correctamente.');
+        toast.success(
+          formKind === 'create-child'
+            ? 'Subcategoría creada correctamente.'
+            : 'Categoría creada correctamente.'
+        );
       }
       setFormOpen(false);
       refresh();
@@ -331,12 +365,22 @@ export default function CategoriesPage() {
       render: (category) => {
         if (category.children && category.children.length > 0) {
           return (
-            <div className="flex flex-wrap gap-1">
+            <div className="flex flex-wrap items-center gap-1">
               {category.children.map((child) => (
                 <StatusBadge key={child.id} tone="info">
                   {child.name}
                 </StatusBadge>
               ))}
+              {canWrite && (
+                <button
+                  type="button"
+                  onClick={() => openCreateChild(category)}
+                  className="rounded-full px-2 py-0.5 text-xs font-medium text-brand-500 hover:bg-brand-50 dark:hover:bg-brand-500/10"
+                  title="Añadir subcategoría"
+                >
+                  + Añadir
+                </button>
+              )}
             </div>
           );
         }
@@ -350,7 +394,20 @@ export default function CategoriesPage() {
             </span>
           );
         }
-        return <span className="text-sm text-gray-400 dark:text-gray-500">Categoría raíz</span>;
+        return (
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-400 dark:text-gray-500">Categoría raíz</span>
+            {canWrite && (
+              <button
+                type="button"
+                onClick={() => openCreateChild(category)}
+                className="text-xs font-medium text-brand-500 hover:underline"
+              >
+                + Añadir subcategoría
+              </button>
+            )}
+          </div>
+        );
       },
     },
     {
@@ -385,6 +442,15 @@ export default function CategoriesPage() {
               viewAction(() => openDetail(category)),
               ...(canWrite
                 ? [
+                    ...(!resolveParent(category)
+                      ? [
+                          {
+                            icon: <PlusIcon className="h-4 w-4" />,
+                            title: 'Añadir subcategoría',
+                            onClick: () => openCreateChild(category),
+                          },
+                        ]
+                      : []),
                     editAction(() => openEdit(category)),
                     {
                       ...deleteAction(() => openConfirm(category, 'delete')),
@@ -402,7 +468,18 @@ export default function CategoriesPage() {
     },
   ];
 
-  const slugPreview = form.slug.trim() || slugify(form.name);
+  const slugPreview = isChildForm && formParent
+    ? slugifyCategoryChild(formParent.name, form.name)
+    : form.slug.trim() || slugify(form.name);
+
+  const formTitle =
+    formKind === 'create-child'
+      ? `Nueva subcategoría de ${formParent?.name ?? 'categoría'}`
+      : formKind === 'edit-child'
+        ? 'Editar subcategoría'
+        : editingCategory
+          ? 'Editar categoría'
+          : 'Nueva categoría padre';
 
   return (
     <>
@@ -419,7 +496,7 @@ export default function CategoriesPage() {
         actions={
           <CanAccess roles={GSP_WRITE_ROLES}>
             <Button size="sm" onClick={openCreate} startIcon={<PlusIcon className="h-4 w-4" />}>
-              Nueva Categoría
+              Nueva categoría padre
             </Button>
           </CanAccess>
         }
@@ -447,13 +524,13 @@ export default function CategoriesPage() {
                 <option value="0">Inactivas</option>
               </select>
             </Field>
-            {(sonsFilter || statusFilter) && (
+            {(sonsFilter !== '1' || statusFilter) && (
               <Button
                 size="sm"
                 variant="outline"
                 onClick={() =>
                   applyFilter(() => {
-                    setSonsFilter('');
+                    setSonsFilter('1');
                     setStatusFilter('');
                   })
                 }
@@ -488,43 +565,50 @@ export default function CategoriesPage() {
         className="max-w-2xl p-6"
       >
         <h4 className="mb-5 text-lg font-semibold text-gray-800 dark:text-white">
-          {editingCategory ? 'Editar Categoría' : 'Nueva Categoría'}
+          {formTitle}
         </h4>
         <FormAlert message={formError} />
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {isChildForm && formParent && (
+            <div className="sm:col-span-2 rounded-lg border border-brand-100 bg-brand-50/70 px-3 py-2 text-sm text-gray-700 dark:border-brand-500/20 dark:bg-brand-500/10 dark:text-gray-200">
+              Quedará dentro de <span className="font-semibold">{formParent.name}</span>
+              {slugPreview ? (
+                <span className="mt-0.5 block text-xs text-gray-500 dark:text-gray-400">
+                  Slug automático: /{slugPreview}
+                </span>
+              ) : null}
+            </div>
+          )}
           <TextField
             label="Nombre"
             required
             value={form.name}
             onChange={(name) => setForm({ ...form, name })}
-            placeholder="Impresoras"
+            placeholder={isChildForm ? 'Térmicas' : 'Impresoras'}
             disabled={saving}
           />
-          <TextField
-            label="Slug (Opcional)"
-            hint={slugPreview ? `Se guardará como: /${slugPreview}` : 'Se genera desde el nombre'}
-            value={form.slug}
-            onChange={(slug) => setForm({ ...form, slug })}
-            placeholder="impresoras"
-            disabled={saving}
-          />
+          {!isChildForm && (
+            <TextField
+              label="Slug (Opcional)"
+              hint={slugPreview ? `Se guardará como: /${slugPreview}` : 'Se genera desde el nombre'}
+              value={form.slug}
+              onChange={(slug) => setForm({ ...form, slug })}
+              placeholder="impresoras"
+              disabled={saving}
+            />
+          )}
           <TextAreaField
             label="Descripción (Opcional)"
             className="sm:col-span-2"
             hint="Opcional · entre 2 y 255 caracteres"
             value={form.description}
             onChange={(description) => setForm({ ...form, description })}
-            placeholder="Impresoras térmicas para tickets y documentos de venta."
-            disabled={saving}
-          />
-          <SelectField
-            label="Categoría padre"
-            hint="Déjalo vacío para crear una categoría raíz"
-            value={form.parentId}
-            onChange={(parentId) => setForm({ ...form, parentId })}
-            options={parentSelectOptions}
-            placeholder="Ninguna (categoría raíz)"
+            placeholder={
+              isChildForm
+                ? 'Impresoras térmicas de 80 mm para tickets.'
+                : 'Impresoras térmicas para tickets y documentos de venta.'
+            }
             disabled={saving}
           />
           {editingCategory && (
@@ -540,15 +624,17 @@ export default function CategoriesPage() {
               disabled={saving}
             />
           )}
-          <div className="sm:col-span-2">
-            <ImageDropzone
-              label="Imagen"
-              files={form.file}
-              onChange={(file) => setForm({ ...form, file })}
-              currentImageUrl={editingCategory?.imagePath}
-              disabled={saving}
-            />
-          </div>
+          {formKind !== 'create-child' && (
+            <div className="sm:col-span-2">
+              <ImageDropzone
+                label="Imagen"
+                files={form.file}
+                onChange={(file) => setForm({ ...form, file })}
+                currentImageUrl={editingCategory?.imagePath}
+                disabled={saving}
+              />
+            </div>
+          )}
         </div>
 
         <div className="mt-6 flex justify-end gap-3">
@@ -662,7 +748,16 @@ export default function CategoriesPage() {
             )}
           </div>
         )}
-        <div className="mt-6 flex justify-end">
+        <div className="mt-6 flex justify-end gap-3">
+          {canWrite && detailCategory && !detailCategory.parent && (
+            <Button
+              size="sm"
+              onClick={() => openCreateChild(detailCategory)}
+              startIcon={<PlusIcon className="h-4 w-4" />}
+            >
+              Añadir subcategoría
+            </Button>
+          )}
           <Button variant="outline" onClick={() => setDetailOpen(false)}>
             Cerrar
           </Button>

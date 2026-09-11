@@ -10,7 +10,7 @@ import {
 import { useSidebar } from "../context/SidebarContext";
 import { useAuth } from "../context/AuthContext";
 import type { RoleCode } from "../types";
-import { CORE_ROLES, GSP_VIEW_ROLES } from "../constants/roles";
+import { CORE_ROLES, GSP_VIEW_ROLES, GSP_WRITE_ROLES } from "../constants/roles";
 import {
     BeakerIcon,
     BuildingStorefrontIcon,
@@ -23,6 +23,7 @@ import {
     RectangleGroupIcon,
     UserIcon,
     UsersIcon,
+    WrenchScrewdriverIcon,
 } from "@heroicons/react/24/outline";
 
 type NavSubItem = {
@@ -81,6 +82,13 @@ const navItems: NavItem[] = [
                 name: "Kits y packs",
                 path: "/gsp/kits",
                 roles: GSP_VIEW_ROLES,
+            },
+            {
+                icon: <WrenchScrewdriverIcon className="w-4 h-4" />,
+                name: "Drivers de Soporte",
+                path: "/gsp/drivers",
+                // La API exige ADMIN/ADMIN_GSP/DESARROLLO incluso para listar.
+                roles: GSP_WRITE_ROLES,
             },
         ],
     },

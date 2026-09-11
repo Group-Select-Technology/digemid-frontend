@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import toast from 'react-hot-toast';
 import { extractApiError } from '../../utils/apiError';
-import { formatCurrency, slugify, toNumber } from '../../utils/format';
+import { formatCurrency, generateSku, slugify, toNumber } from '../../utils/format';
 import {
   BUNDLE_TYPE_HINTS,
   BUNDLE_TYPE_LABELS,
@@ -45,6 +45,7 @@ interface BundleForm {
   title: string;
   description: string;
   slug: string;
+  sku: string;
   type: BundleType | '';
   originalPrice: string;
   discountPercentage: string;
@@ -60,6 +61,7 @@ const emptyForm: BundleForm = {
   title: '',
   description: '',
   slug: '',
+  sku: '',
   type: '',
   originalPrice: '',
   discountPercentage: '0',
@@ -88,6 +90,7 @@ const toFormState = (bundle: Bundle): BundleForm => ({
   title: bundle.title,
   description: bundle.description,
   slug: bundle.slug,
+  sku: bundle.sku ?? '',
   type: bundle.type,
   originalPrice: String(toNumber(bundle.originalPrice)),
   discountPercentage: String(toNumber(bundle.discountPercentage)),
@@ -117,7 +120,7 @@ export default function BundleFormPage() {
 
   const [bundle, setBundle] = useState<Bundle | null>(bundleFromState);
   const [form, setForm] = useState<BundleForm>(
-    bundleFromState ? toFormState(bundleFromState) : emptyForm
+    bundleFromState ? toFormState(bundleFromState) : { ...emptyForm, sku: generateSku() }
   );
   const [loadingBundle, setLoadingBundle] = useState(isEditing && !bundleFromState);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -251,6 +254,10 @@ export default function BundleFormPage() {
       return 'La descripción debe tener al menos 2 caracteres.';
     if (form.description.trim().length > 600)
       return 'La descripción no puede superar los 600 caracteres.';
+    if (form.slug.trim() && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(form.slug.trim()))
+      return 'El slug solo puede contener minúsculas, números y guiones.';
+    if (form.sku.trim() && !/^[A-Za-z0-9]+(?:[-_][A-Za-z0-9]+)*$/.test(form.sku.trim()))
+      return 'El SKU solo puede contener letras, números, guiones y guiones bajos.';
     if (!form.type) return 'Debes seleccionar el tipo (kit, pack o minipack).';
     if (!form.originalPrice || originalPrice < 0)
       return 'El precio original debe ser un número mayor o igual a cero.';
@@ -294,6 +301,7 @@ export default function BundleFormPage() {
           title: form.title.trim(),
           description: form.description.trim(),
           slug: form.slug.trim() || undefined,
+          sku: form.sku.trim() || undefined,
           type: form.type as BundleType,
           originalPrice,
           isFeatured: form.isFeatured,
@@ -317,6 +325,7 @@ export default function BundleFormPage() {
           title: form.title.trim(),
           description: form.description.trim(),
           slug: form.slug.trim() || undefined,
+          sku: form.sku.trim() || undefined,
           type: form.type as BundleType,
           originalPrice,
           isFeatured: form.isFeatured,
@@ -444,8 +453,32 @@ export default function BundleFormPage() {
         </FormSection>
 
         <FormSection
+          title="Identificadores"
+          description="El kit se puede identificar por SKU. Es único y se puede usar para buscarlo en el panel y en la tienda."
+        >
+          <div>
+            <TextField
+              label="SKU"
+              hint="Código interno único. Se propone automáticamente y puedes editarlo; si lo dejas vacío, la API genera uno."
+              value={form.sku}
+              onChange={(value) => update('sku', value)}
+              placeholder="GSP-A1B2C3D4E5"
+              disabled={saving}
+            />
+            <button
+              type="button"
+              onClick={() => update('sku', generateSku())}
+              disabled={saving}
+              className="mt-1 text-xs font-medium text-brand-500 transition hover:text-brand-600 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Generar nuevo SKU
+            </button>
+          </div>
+        </FormSection>
+
+        <FormSection
           title="Productos incluidos"
-          description="Busca productos activos por nombre, ID, slug o código de barras y define la cantidad de cada uno. Las marcas se deducen de los productos, sin repetir."
+          description="Busca productos activos por nombre, SKU, slug o código de barras y define la cantidad de cada uno. Las marcas se deducen de los productos, sin repetir."
         >
           <div className="relative">
             <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -455,7 +488,7 @@ export default function BundleFormPage() {
               type="text"
               value={productQuery}
               onChange={(e) => setProductQuery(e.target.value)}
-              placeholder="Buscar por nombre, ID, slug o código de barras..."
+              placeholder="Buscar por nombre, slug, SKU o código de barras..."
               disabled={saving}
               className={inputClass}
             />
@@ -500,11 +533,8 @@ export default function BundleFormPage() {
                                 {product.slug ? ` · /${product.slug}` : ''}
                               </span>
                               <span className="block truncate text-[11px] text-gray-400">
-                                {product.codigoBarra
-                                  ? `Barras: ${product.codigoBarra}`
-                                  : 'Sin código de barras'}
-                                {' · '}
-                                {product.id}
+                                {product.sku ? `SKU: ${product.sku}` : 'Sin SKU'}
+                                {product.codigoBarra ? ` · Barras: ${product.codigoBarra}` : ''}
                               </span>
                             </span>
                           </button>

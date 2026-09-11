@@ -18,6 +18,7 @@ import ProductsPage from "./pages/Gsp/ProductsPage";
 import ProductFormPage from "./pages/Gsp/ProductFormPage";
 import BundlesPage from "./pages/Gsp/BundlesPage";
 import BundleFormPage from "./pages/Gsp/BundleFormPage";
+import DriversPage from "./pages/Gsp/DriversPage";
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import RoleRoute from "./components/auth/RoleRoute";
@@ -54,6 +55,11 @@ export default function App() {
                                 <Route path="/gsp/productos/:id/editar" element={<ProductFormPage />} />
                                 <Route path="/gsp/kits/nuevo" element={<BundleFormPage />} />
                                 <Route path="/gsp/kits/:id/editar" element={<BundleFormPage />} />
+                            </Route>
+
+                            {/* Drivers de soporte: la API exige ADMIN/ADMIN_GSP/DESARROLLO hasta para listar */}
+                            <Route element={<RoleRoute roles={GSP_WRITE_ROLES} />}>
+                                <Route path="/gsp/drivers" element={<DriversPage />} />
                             </Route>
 
                             <Route element={<RoleRoute roles={['ADMIN', 'DESARROLLO', 'SOPORTE']} />}>

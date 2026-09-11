@@ -228,7 +228,7 @@ export interface UpdateCategoryDto extends Partial<CreateCategoryDto> {
 }
 
 export interface CategoryPaginationParams extends PaginationStatusParams {
-  /** `1` = solo padres (incluye `children`), `0` = solo hojas, omitido = todas (incluye `parent`). */
+  /** `1` = solo raíces (con o sin hijas; incluye `children`), `0` = solo subcategorías, omitido = todas. */
   sons?: '0' | '1';
 }
 
@@ -355,9 +355,9 @@ export interface UpdateProductDto {
   isActive?: boolean;
   discountPercentage?: number;
   discountCash?: number;
-  /** Si se envían, reemplazan por completo el set de imágenes anterior. */
+  /** Si se envían, se agregan a las imágenes actuales (no las reemplazan). */
   images?: File[];
-  /** IDs de las imágenes existentes en el nuevo orden (la primera es la principal). No se debe enviar junto con `images`. */
+  /** IDs de las imágenes existentes a conservar, en el nuevo orden (la primera es la principal). Puede enviarse junto con `images`. */
   imagesOrder?: number[];
 }
 
@@ -413,6 +413,7 @@ export interface Bundle {
   title: string;
   description: string;
   slug: string;
+  sku: string;
   type: BundleType;
   originalPrice: number | string;
   discountPercentage: number | string;
@@ -438,6 +439,7 @@ export interface CreateBundleDto {
   title: string;
   description: string;
   slug?: string;
+  sku?: string;
   type: BundleType;
   originalPrice: number;
   isFeatured?: boolean;
@@ -450,6 +452,7 @@ export interface UpdateBundleDto {
   title?: string;
   description?: string;
   slug?: string;
+  sku?: string;
   type?: BundleType;
   originalPrice?: number;
   isFeatured?: boolean;
@@ -477,3 +480,52 @@ export interface BundlePaginationParams extends PaginationParams {
 }
 
 export type BundlesPaginatedResponse = PaginatedResponse<Bundle>;
+
+// ---- GSP · Soporte (modelos y drivers) ----
+export interface SupportCategorySummary {
+  id: number;
+  name: string;
+}
+
+export interface SupportDriver {
+  id: number;
+  name: string;
+  fileUrl: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SupportModel {
+  id: number;
+  name: string;
+  order: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  category: SupportCategorySummary | null;
+  drivers: SupportDriver[];
+}
+
+export interface CreateSupportDriverDto {
+  name: string;
+  fileUrl: string;
+}
+
+export interface CreateSupportDto {
+  name: string;
+  order: number;
+  categoryId: number;
+  drivers: CreateSupportDriverDto[];
+}
+
+export interface UpdateSupportDto extends Partial<CreateSupportDto> {
+  isActive?: boolean;
+}
+
+export interface SupportPaginationParams extends PaginationStatusParams {
+  /** Búsqueda por coincidencia en el nombre del modelo. */
+  search?: string;
+}
+
+export type SupportPaginatedResponse = PaginatedResponse<SupportModel>;
