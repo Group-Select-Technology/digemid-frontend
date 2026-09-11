@@ -355,9 +355,9 @@ export interface UpdateProductDto {
   isActive?: boolean;
   discountPercentage?: number;
   discountCash?: number;
-  /** Si se envían, reemplazan por completo el set de imágenes anterior. */
+  /** Si se envían, se agregan a las imágenes actuales (no las reemplazan). */
   images?: File[];
-  /** IDs de las imágenes existentes en el nuevo orden (la primera es la principal). No se debe enviar junto con `images`. */
+  /** IDs de las imágenes existentes a conservar, en el nuevo orden (la primera es la principal). Puede enviarse junto con `images`. */
   imagesOrder?: number[];
 }
 

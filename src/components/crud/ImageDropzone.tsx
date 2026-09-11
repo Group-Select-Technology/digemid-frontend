@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { Field } from './FormControls';
+import { useSortableReorder } from '../../hooks/useSortableReorder';
 
 interface ImageDropzoneProps {
   label: string;
@@ -13,6 +14,8 @@ interface ImageDropzoneProps {
   currentImageUrl?: string | null;
   /** Permite mover las imágenes: el orden de la lista define el campo `order` en la API. */
   reorderable?: boolean;
+  /** Muestra la etiqueta "Principal" en la primera imagen. Por defecto sigue a `reorderable`. */
+  showPrimaryBadge?: boolean;
   hint?: string;
   required?: boolean;
   disabled?: boolean;
@@ -32,6 +35,7 @@ export default function ImageDropzone({
   maxSizeMb = 5,
   currentImageUrl,
   reorderable = false,
+  showPrimaryBadge,
   hint,
   required,
   disabled,
@@ -92,6 +96,9 @@ export default function ImageDropzone({
   };
 
   const isFull = files.length >= maxFiles;
+  const markFirstAsPrimary = showPrimaryBadge ?? reorderable;
+  const canReorder = Boolean(reorderable && !disabled && files.length > 1);
+  const { getItemProps, itemClassName } = useSortableReorder(canReorder);
 
   return (
     <Field
@@ -146,14 +153,17 @@ export default function ImageDropzone({
           {previews.map((preview, index) => (
             <li
               key={preview.url}
-              className="relative overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700"
+              {...getItemProps(index, moveTo)}
+              title={canReorder ? 'Arrastra para cambiar el orden' : undefined}
+              className={`relative overflow-hidden rounded-lg border border-gray-200 transition dark:border-gray-700 ${itemClassName(index)}`}
             >
               <img
                 src={preview.url}
                 alt={preview.file.name}
-                className="mx-auto h-48 w-auto bg-white object-contain dark:bg-gray-800"
+                draggable={false}
+                className="pointer-events-none mx-auto h-48 w-auto bg-white object-contain dark:bg-gray-800"
                 />
-              {reorderable && index === 0 && (
+              {markFirstAsPrimary && index === 0 && (
                 <span className="absolute left-1 top-1 rounded bg-brand-500 px-1.5 py-0.5 text-[10px] font-medium text-white">
                   Principal
                 </span>
@@ -161,6 +171,7 @@ export default function ImageDropzone({
               <button
                 type="button"
                 onClick={() => removeAt(index)}
+                onMouseDown={(event) => event.stopPropagation()}
                 disabled={disabled}
                 title="Quitar imagen"
                 className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-xs text-white transition hover:bg-red-500"
@@ -176,6 +187,7 @@ export default function ImageDropzone({
                     <button
                       type="button"
                       onClick={() => moveTo(index, index - 1)}
+                      onMouseDown={(event) => event.stopPropagation()}
                       disabled={disabled || index === 0}
                       title="Mover antes"
                       className="rounded px-1 text-xs text-gray-500 transition hover:text-brand-500 disabled:opacity-30"
@@ -185,6 +197,7 @@ export default function ImageDropzone({
                     <button
                       type="button"
                       onClick={() => moveTo(index, index + 1)}
+                      onMouseDown={(event) => event.stopPropagation()}
                       disabled={disabled || index === files.length - 1}
                       title="Mover después"
                       className="rounded px-1 text-xs text-gray-500 transition hover:text-brand-500 disabled:opacity-30"
