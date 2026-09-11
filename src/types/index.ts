@@ -382,7 +382,7 @@ export interface ProductPaginationParams extends PaginationParams {
 export type ProductsPaginatedResponse = PaginatedResponse<Product>;
 
 // ---- GSP · Bundles (kits, packs y minipacks) ----
-export type BundleType = 'KIT' | 'PACKS' | 'MINIPACKS' | 'SUPERPACKS' | 'COMBOS';
+export type BundleType = 'KIT' | 'PACKS' | 'MINIPACKS';
 
 export interface BundleProductImage {
   imagePath: string;
