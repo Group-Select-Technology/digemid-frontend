@@ -4,19 +4,15 @@ export const BUNDLE_TYPE_LABELS: Record<BundleType, string> = {
   KIT: 'Kit',
   PACKS: 'Pack',
   MINIPACKS: 'Minipack',
-  SUPERPACKS: 'Superpack',
-  COMBOS: 'Combo',
 };
 
 export const BUNDLE_TYPE_HINTS: Record<BundleType, string> = {
   KIT: '4 o más productos distintos',
   PACKS: '3 productos distintos',
   MINIPACKS: '2 productos distintos',
-  SUPERPACKS: 'Agrupación amplia de productos',
-  COMBOS: 'Combinación de productos',
 };
 
-export const BUNDLE_TYPES: BundleType[] = ['KIT', 'PACKS', 'MINIPACKS', 'SUPERPACKS', 'COMBOS'];
+export const BUNDLE_TYPES: BundleType[] = ['KIT', 'PACKS', 'MINIPACKS'];
 
 /** Imagen principal del producto: `order === 0`. Si no hay, usa la de menor order. */
 export function primaryImagePath(images?: BundleProductImage[]): string | null {
