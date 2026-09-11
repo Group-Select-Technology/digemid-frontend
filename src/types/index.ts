@@ -519,6 +519,10 @@ export interface CreateSupportDto {
   drivers: CreateSupportDriverDto[];
 }
 
+export interface UpdateSupportDto extends Partial<CreateSupportDto> {
+  isActive?: boolean;
+}
+
 export interface SupportPaginationParams extends PaginationStatusParams {
   /** Búsqueda por coincidencia en el nombre del modelo. */
   search?: string;

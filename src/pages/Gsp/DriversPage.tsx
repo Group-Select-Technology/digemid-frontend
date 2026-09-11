@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { extractApiError } from '../../utils/apiError';
 import { formatDate } from '../../utils/format';
+import { extractGoogleDriveFileId, toDirectDownloadUrl } from '../../utils/drive';
 import { primaryImagePath } from '../../utils/bundle';
 import { supportService } from '../../services/supportService';
 import { categoriesService } from '../../services/categoriesService';
@@ -21,8 +22,15 @@ import CrudCard from '../../components/crud/CrudCard';
 import Pagination from '../../components/crud/Pagination';
 import ConfirmModal from '../../components/crud/ConfirmModal';
 import RowActions from '../../components/crud/RowActions';
-import { deleteAction, viewAction } from '../../components/crud/rowActionPresets';
-import { Field, FormAlert, SelectField, TextField, inputClass } from '../../components/crud/FormControls';
+import { deleteAction, editAction, viewAction } from '../../components/crud/rowActionPresets';
+import {
+  Field,
+  FormAlert,
+  SelectField,
+  TextField,
+  ToggleField,
+  inputClass,
+} from '../../components/crud/FormControls';
 import StatusBadge from '../../components/crud/StatusBadge';
 import Button from '../../components/ui/button/Button';
 import { Modal } from '../../components/ui/modal';
@@ -31,6 +39,7 @@ import { DownloadIcon, PlusIcon, TrashBinIcon } from '../../icons';
 const PAGE_SIZE = 10;
 const CATEGORY_OPTIONS_LIMIT = 100;
 const PRODUCT_SEARCH_LIMIT = 8;
+const DOWNLOAD_FEEDBACK_MS = 3000;
 
 type StatusFilter = '' | '0' | '1';
 
@@ -49,6 +58,7 @@ interface SupportForm {
   name: string;
   order: string;
   categoryId: string;
+  isActive: boolean;
   drivers: DriverRow[];
 }
 
@@ -58,7 +68,22 @@ const emptyForm = (order = 0): SupportForm => ({
   name: '',
   order: String(order),
   categoryId: '',
+  isActive: true,
   drivers: [newDriverRow()],
+});
+
+const formFromModel = (model: SupportModel): SupportForm => ({
+  name: model.name,
+  order: String(model.order),
+  categoryId: model.category?.id ? String(model.category.id) : '',
+  isActive: model.isActive,
+  drivers: model.drivers?.length
+    ? model.drivers.map((driver) => ({
+        key: String(driver.id),
+        name: driver.name,
+        fileUrl: driver.fileUrl,
+      }))
+    : [newDriverRow()],
 });
 
 export default function DriversPage() {
@@ -76,6 +101,7 @@ export default function DriversPage() {
   const [categoryOptions, setCategoryOptions] = useState<Category[]>([]);
 
   const [formOpen, setFormOpen] = useState(false);
+  const [editingModel, setEditingModel] = useState<SupportModel | null>(null);
   const [form, setForm] = useState<SupportForm>(emptyForm());
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -89,10 +115,29 @@ export default function DriversPage() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailModel, setDetailModel] = useState<SupportModel | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [downloadingDriverId, setDownloadingDriverId] = useState<number | null>(null);
+  const downloadTimer = useRef<number | null>(null);
 
-  const [deleteOpen, setDeleteOpen] = useState(false);
+  useEffect(
+    () => () => {
+      if (downloadTimer.current) window.clearTimeout(downloadTimer.current);
+    },
+    []
+  );
+
+  const startDownloadFeedback = (driverId: number) => {
+    if (downloadTimer.current) window.clearTimeout(downloadTimer.current);
+    setDownloadingDriverId(driverId);
+    downloadTimer.current = window.setTimeout(() => {
+      setDownloadingDriverId(null);
+      downloadTimer.current = null;
+    }, DOWNLOAD_FEEDBACK_MS);
+  };
+
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmType, setConfirmType] = useState<'delete' | 'toggle'>('delete');
   const [targetModel, setTargetModel] = useState<SupportModel | null>(null);
-  const [deleting, setDeleting] = useState(false);
+  const [confirming, setConfirming] = useState(false);
 
   const fetchModels = useCallback(async (pageIndex: number, activeFilters: Filters) => {
     setLoading(true);
@@ -194,12 +239,24 @@ export default function DriversPage() {
     [categoryOptions]
   );
 
-  const openCreate = () => {
-    setForm(emptyForm(models.length));
+  const resetFormExtras = () => {
     setFormError(null);
     setProductQuery('');
     setProductResults([]);
     setSelectedProduct(null);
+  };
+
+  const openCreate = () => {
+    setEditingModel(null);
+    setForm(emptyForm(models.length));
+    resetFormExtras();
+    setFormOpen(true);
+  };
+
+  const openEdit = (model: SupportModel) => {
+    setEditingModel(model);
+    setForm(formFromModel(model));
+    resetFormExtras();
     setFormOpen(true);
   };
 
@@ -247,7 +304,7 @@ export default function DriversPage() {
     }
     const drivers = form.drivers.map((driver) => ({
       name: driver.name.trim(),
-      fileUrl: driver.fileUrl.trim(),
+      fileUrl: toDirectDownloadUrl(driver.fileUrl),
     }));
     if (drivers.length === 0) {
       setFormError('Debes incluir al menos un driver.');
@@ -261,17 +318,28 @@ export default function DriversPage() {
     setSaving(true);
     setFormError(null);
     try {
-      await supportService.create({
+      const payload = {
         name,
         order,
         categoryId: Number(form.categoryId),
         drivers,
-      });
-      toast.success('Modelo de soporte creado correctamente.');
+      };
+      if (editingModel) {
+        await supportService.update(editingModel.id, { ...payload, isActive: form.isActive });
+        toast.success('Modelo de soporte actualizado correctamente.');
+      } else {
+        await supportService.create(payload);
+        toast.success('Modelo de soporte creado correctamente.');
+      }
       setFormOpen(false);
+      setEditingModel(null);
       refresh();
     } catch (err) {
-      const msg = extractApiError(err) ?? 'Error al crear el modelo de soporte.';
+      const msg =
+        extractApiError(err) ??
+        (editingModel
+          ? 'Error al actualizar el modelo de soporte.'
+          : 'Error al crear el modelo de soporte.');
       setFormError(msg);
       toast.error(msg);
     } finally {
@@ -293,23 +361,52 @@ export default function DriversPage() {
     }
   };
 
-  const handleDelete = async () => {
+  const openConfirm = (model: SupportModel, type: 'delete' | 'toggle') => {
+    setTargetModel(model);
+    setConfirmType(type);
+    setConfirmOpen(true);
+  };
+
+  const handleConfirm = async () => {
     if (!targetModel) return;
-    setDeleting(true);
+    setConfirming(true);
     try {
-      await supportService.remove(targetModel.id);
-      toast.success('Modelo de soporte eliminado correctamente.');
-      setDeleteOpen(false);
-      const isLastOnPage = models.length === 1 && page > 1;
-      if (isLastOnPage) setPage(page - 1);
-      else refresh();
+      if (confirmType === 'delete') {
+        await supportService.remove(targetModel.id);
+        toast.success('Modelo de soporte eliminado correctamente.');
+        setConfirmOpen(false);
+        if (models.length === 1 && page > 1) {
+          setPage(page - 1);
+          return;
+        }
+      } else {
+        await supportService.update(targetModel.id, { isActive: !targetModel.isActive });
+        toast.success(
+          `Modelo ${targetModel.isActive ? 'desactivado' : 'activado'} correctamente.`
+        );
+        setConfirmOpen(false);
+      }
+      refresh();
     } catch (err) {
-      setDeleteOpen(false);
-      toast.error(extractApiError(err) ?? 'Error al eliminar el modelo de soporte.');
+      setConfirmOpen(false);
+      toast.error(extractApiError(err) ?? 'Error al realizar la acción.');
     } finally {
-      setDeleting(false);
+      setConfirming(false);
     }
   };
+
+  const confirmTexts =
+    confirmType === 'delete'
+      ? {
+          title: 'Eliminar Modelo de Soporte',
+          message: `¿Estás seguro de que deseas eliminar el modelo "${targetModel?.name}"? Se eliminarán también sus ${targetModel?.drivers?.length ?? 0} driver(s) asociados.`,
+        }
+      : {
+          title: targetModel?.isActive ? 'Desactivar Modelo' : 'Activar Modelo',
+          message: targetModel?.isActive
+            ? `¿Deseas desactivar "${targetModel?.name}"? Dejará de mostrarse en el Centro de Drivers.`
+            : `¿Deseas activar "${targetModel?.name}"?`,
+        };
 
   const columns: Column<SupportModel>[] = [
     {
@@ -350,7 +447,11 @@ export default function DriversPage() {
       header: 'Estado',
       sortValue: (model) => (model.isActive ? 'Activo' : 'Inactivo'),
       render: (model) => (
-        <StatusBadge tone={model.isActive ? 'success' : 'danger'}>
+        <StatusBadge
+          tone={model.isActive ? 'success' : 'danger'}
+          onClick={() => openConfirm(model, 'toggle')}
+          title="Cambiar estado"
+        >
           {model.isActive ? 'Activo' : 'Inactivo'}
         </StatusBadge>
       ),
@@ -369,10 +470,8 @@ export default function DriversPage() {
         <RowActions
           actions={[
             viewAction(() => openDetail(model)),
-            deleteAction(() => {
-              setTargetModel(model);
-              setDeleteOpen(true);
-            }),
+            editAction(() => openEdit(model)),
+            deleteAction(() => openConfirm(model, 'delete')),
           ]}
         />
       ),
@@ -462,17 +561,20 @@ export default function DriversPage() {
         )}
       </CrudCard>
 
-      {/* Formulario de creación */}
+      {/* Formulario de creación / edición */}
       <Modal
         isOpen={formOpen}
         onClose={() => {
           if (saving) return;
           setFormOpen(false);
+          setEditingModel(null);
           setFormError(null);
         }}
         className="max-w-2xl p-6"
       >
-        <h4 className="mb-5 text-lg font-semibold text-gray-800 dark:text-white">Nuevo Modelo de Soporte</h4>
+        <h4 className="mb-5 text-lg font-semibold text-gray-800 dark:text-white">
+          {editingModel ? 'Editar Modelo de Soporte' : 'Nuevo Modelo de Soporte'}
+        </h4>
         <FormAlert message={formError} />
 
         <div className="mb-5 rounded-lg border border-dashed border-gray-300 p-3 dark:border-gray-700">
@@ -586,6 +688,17 @@ export default function DriversPage() {
             disabled={saving}
             hint="Solo se listan categorías padre activas, tal como lo exige la API."
           />
+          {editingModel && (
+            <div className="sm:col-span-2">
+              <ToggleField
+                label="Activo"
+                description="Visible en el Centro de Drivers de la tienda"
+                checked={form.isActive}
+                onChange={(isActive) => setForm({ ...form, isActive })}
+                disabled={saving}
+              />
+            </div>
+          )}
         </div>
 
         <div className="mt-5">
@@ -616,7 +729,10 @@ export default function DriversPage() {
                     type="text"
                     value={driver.fileUrl}
                     onChange={(e) => updateDriverRow(driver.key, 'fileUrl', e.target.value)}
-                    placeholder="https://cdn.example.com/drivers/archivo.exe"
+                    onBlur={() =>
+                      updateDriverRow(driver.key, 'fileUrl', toDirectDownloadUrl(driver.fileUrl))
+                    }
+                    placeholder="https://drive.google.com/file/d/.../view?usp=sharing"
                     disabled={saving}
                     className={inputClass}
                   />
@@ -634,22 +750,37 @@ export default function DriversPage() {
             ))}
           </div>
           <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
-            Nombre y URL del archivo son obligatorios para cada driver.
+            Nombre y URL del archivo son obligatorios. Si pegas un enlace de Google Drive de tipo
+            vista, se convierte a descarga directa.
           </p>
         </div>
 
         <div className="mt-6 flex justify-end gap-3">
-          <Button variant="outline" onClick={() => setFormOpen(false)} disabled={saving}>
+          <Button
+            variant="outline"
+            onClick={() => {
+              setFormOpen(false);
+              setEditingModel(null);
+            }}
+            disabled={saving}
+          >
             Cancelar
           </Button>
           <Button onClick={handleSave} disabled={saving}>
-            {saving ? 'Guardando...' : 'Guardar'}
+            {saving ? 'Guardando...' : editingModel ? 'Guardar cambios' : 'Guardar'}
           </Button>
         </div>
       </Modal>
 
       {/* Detalle */}
-      <Modal isOpen={detailOpen} onClose={() => setDetailOpen(false)} className="max-w-lg p-6">
+      <Modal
+        isOpen={detailOpen}
+        onClose={() => {
+          setDetailOpen(false);
+          setDownloadingDriverId(null);
+        }}
+        className="max-w-lg p-6"
+      >
         <h4 className="mb-5 text-lg font-semibold text-gray-800 dark:text-white">Detalle del Modelo</h4>
         {detailModel && (
           <div className="space-y-5">
@@ -689,15 +820,35 @@ export default function DriversPage() {
                             <StatusBadge tone={driver.isActive ? 'success' : 'danger'} size="sm">
                               {driver.isActive ? 'Activo' : 'Inactivo'}
                             </StatusBadge>
+                            {downloadingDriverId === driver.id && (
+                              <p className="mt-1 text-[11px] text-brand-500">Iniciando descarga...</p>
+                            )}
                           </div>
                           <a
-                            href={driver.fileUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            title="Descargar / abrir archivo"
+                            href={toDirectDownloadUrl(driver.fileUrl)}
+                            {...(extractGoogleDriveFileId(driver.fileUrl)
+                              ? { download: true }
+                              : { target: '_blank', rel: 'noopener noreferrer' })}
+                            onClick={(event) => {
+                              if (downloadingDriverId === driver.id) {
+                                event.preventDefault();
+                                return;
+                              }
+                              startDownloadFeedback(driver.id);
+                            }}
+                            aria-busy={downloadingDriverId === driver.id}
+                            title={
+                              downloadingDriverId === driver.id
+                                ? 'Iniciando descarga...'
+                                : 'Descargar archivo'
+                            }
                             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-gray-400 transition hover:bg-brand-50 hover:text-brand-500 dark:hover:bg-brand-500/10"
                           >
-                            <DownloadIcon className="h-4 w-4" />
+                            {downloadingDriverId === driver.id ? (
+                              <span className="h-4 w-4 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" />
+                            ) : (
+                              <DownloadIcon className="h-4 w-4" />
+                            )}
                           </a>
                         </li>
                       ))}
@@ -724,20 +875,31 @@ export default function DriversPage() {
             )}
           </div>
         )}
-        <div className="mt-6 flex justify-end">
+        <div className="mt-6 flex justify-end gap-3">
           <Button variant="outline" onClick={() => setDetailOpen(false)}>
             Cerrar
           </Button>
+          {detailModel && (
+            <Button
+              onClick={() => {
+                setDetailOpen(false);
+                openEdit(detailModel);
+              }}
+              disabled={detailLoading}
+            >
+              Editar
+            </Button>
+          )}
         </div>
       </Modal>
 
       <ConfirmModal
-        isOpen={deleteOpen}
-        onClose={() => setDeleteOpen(false)}
-        onConfirm={handleDelete}
-        loading={deleting}
-        title="Eliminar Modelo de Soporte"
-        message={`¿Estás seguro de que deseas eliminar el modelo "${targetModel?.name}"? Se eliminarán también sus ${targetModel?.drivers?.length ?? 0} driver(s) asociados.`}
+        isOpen={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        onConfirm={handleConfirm}
+        loading={confirming}
+        title={confirmTexts.title}
+        message={confirmTexts.message}
       />
     </>
   );
