@@ -529,3 +529,41 @@ export interface SupportPaginationParams extends PaginationStatusParams {
 }
 
 export type SupportPaginatedResponse = PaginatedResponse<SupportModel>;
+
+// ---- GSP · Sliders ----
+export interface Slider {
+  id: number;
+  title: string | null;
+  desktopImageUrl: string;
+  mobileImageUrl: string;
+  redirectUrl: string | null;
+  orderIndex: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateSliderDto {
+  title?: string;
+  redirectUrl?: string;
+  orderIndex?: number;
+  isActive?: boolean;
+  /** Ambas imágenes son obligatorias al crear y deben viajar siempre juntas. */
+  desktopImage: File;
+  mobileImage: File;
+}
+
+export interface UpdateSliderDto {
+  title?: string;
+  redirectUrl?: string;
+  orderIndex?: number;
+  isActive?: boolean;
+  /** Si se envía una, se debe enviar también la otra (la API rechaza reemplazos parciales). */
+  desktopImage?: File;
+  mobileImage?: File;
+}
+
+export type SliderPaginationParams = PaginationStatusParams;
+
+export type SlidersPaginatedResponse = PaginatedResponse<Slider>;
+

@@ -99,6 +99,9 @@ export default function ImageDropzone({
   const markFirstAsPrimary = showPrimaryBadge ?? reorderable;
   const canReorder = Boolean(reorderable && !disabled && files.length > 1);
   const { getItemProps, itemClassName } = useSortableReorder(canReorder);
+  // Con un solo archivo permitido, la vista previa ocupa todo el ancho disponible en vez de
+  // encajar en una celda angosta del grid: así se aprecia la resolución/proporción real de la imagen.
+  const isSingle = maxFiles === 1;
 
   return (
     <Field
@@ -136,80 +139,119 @@ export default function ImageDropzone({
       </div>
 
       {currentImageUrl && files.length === 0 && (
-        <div className="mt-3 flex items-center gap-3 rounded-lg border border-gray-200 p-2 dark:border-gray-700">
-          <img
-            src={currentImageUrl}
-            alt="Imagen actual"
-            className="h-14 w-14 rounded-md object-cover"
-          />
-          <p className="text-xs text-gray-500 dark:text-gray-400">
-            Imagen actual. Se conservará si no subes una nueva.
-          </p>
-        </div>
+        isSingle ? (
+          <div className="mt-3 overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-center bg-gray-50 p-3 dark:bg-gray-800">
+              <img
+                src={currentImageUrl}
+                alt="Imagen actual"
+                className="max-h-64 w-auto max-w-full object-contain"
+              />
+            </div>
+            <p className="border-t border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400">
+              Imagen actual. Se conservará si no subes una nueva.
+            </p>
+          </div>
+        ) : (
+          <div className="mt-3 flex items-center gap-3 rounded-lg border border-gray-200 p-2 dark:border-gray-700">
+            <img
+              src={currentImageUrl}
+              alt="Imagen actual"
+              className="h-14 w-14 rounded-md object-cover"
+            />
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              Imagen actual. Se conservará si no subes una nueva.
+            </p>
+          </div>
+        )
       )}
 
       {previews.length > 0 && (
-        <ul className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-5">
-          {previews.map((preview, index) => (
-            <li
-              key={preview.url}
-              {...getItemProps(index, moveTo)}
-              title={canReorder ? 'Arrastra para cambiar el orden' : undefined}
-              className={`relative overflow-hidden rounded-lg border border-gray-200 transition dark:border-gray-700 ${itemClassName(index)}`}
-            >
+        isSingle ? (
+          <div className="mt-3 overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700">
+            <div className="relative flex items-center justify-center bg-gray-50 p-3 dark:bg-gray-800">
               <img
-                src={preview.url}
-                alt={preview.file.name}
-                draggable={false}
-                className="pointer-events-none mx-auto h-48 w-auto bg-white object-contain dark:bg-gray-800"
-                />
-              {markFirstAsPrimary && index === 0 && (
-                <span className="absolute left-1 top-1 rounded bg-brand-500 px-1.5 py-0.5 text-[10px] font-medium text-white">
-                  Principal
-                </span>
-              )}
+                src={previews[0].url}
+                alt={previews[0].file.name}
+                className="max-h-64 w-auto max-w-full object-contain"
+              />
               <button
                 type="button"
-                onClick={() => removeAt(index)}
-                onMouseDown={(event) => event.stopPropagation()}
+                onClick={() => removeAt(0)}
                 disabled={disabled}
                 title="Quitar imagen"
-                className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-xs text-white transition hover:bg-red-500"
+                className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-xs text-white transition hover:bg-red-500"
               >
                 ✕
               </button>
-              <div className="flex items-center justify-between gap-1 bg-white px-2 py-1 dark:bg-gray-900">
-                <span className="truncate text-[10px] text-gray-500 dark:text-gray-400">
-                  {preview.file.name}
-                </span>
-                {reorderable && (
-                  <span className="flex shrink-0 gap-0.5">
-                    <button
-                      type="button"
-                      onClick={() => moveTo(index, index - 1)}
-                      onMouseDown={(event) => event.stopPropagation()}
-                      disabled={disabled || index === 0}
-                      title="Mover antes"
-                      className="rounded px-1 text-xs text-gray-500 transition hover:text-brand-500 disabled:opacity-30"
-                    >
-                      ←
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => moveTo(index, index + 1)}
-                      onMouseDown={(event) => event.stopPropagation()}
-                      disabled={disabled || index === files.length - 1}
-                      title="Mover después"
-                      className="rounded px-1 text-xs text-gray-500 transition hover:text-brand-500 disabled:opacity-30"
-                    >
-                      →
-                    </button>
+            </div>
+            <p className="truncate border-t border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400">
+              {previews[0].file.name}
+            </p>
+          </div>
+        ) : (
+          <ul className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-5">
+            {previews.map((preview, index) => (
+              <li
+                key={preview.url}
+                {...getItemProps(index, moveTo)}
+                title={canReorder ? 'Arrastra para cambiar el orden' : undefined}
+                className={`relative overflow-hidden rounded-lg border border-gray-200 transition dark:border-gray-700 ${itemClassName(index)}`}
+              >
+                <img
+                  src={preview.url}
+                  alt={preview.file.name}
+                  draggable={false}
+                  className="pointer-events-none mx-auto h-48 w-auto bg-white object-contain dark:bg-gray-800"
+                />
+                {markFirstAsPrimary && index === 0 && (
+                  <span className="absolute left-1 top-1 rounded bg-brand-500 px-1.5 py-0.5 text-[10px] font-medium text-white">
+                    Principal
                   </span>
                 )}
-              </div>
-            </li>
-          ))}
-        </ul>
+                <button
+                  type="button"
+                  onClick={() => removeAt(index)}
+                  onMouseDown={(event) => event.stopPropagation()}
+                  disabled={disabled}
+                  title="Quitar imagen"
+                  className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-xs text-white transition hover:bg-red-500"
+                >
+                  ✕
+                </button>
+                <div className="flex items-center justify-between gap-1 bg-white px-2 py-1 dark:bg-gray-900">
+                  <span className="truncate text-[10px] text-gray-500 dark:text-gray-400">
+                    {preview.file.name}
+                  </span>
+                  {reorderable && (
+                    <span className="flex shrink-0 gap-0.5">
+                      <button
+                        type="button"
+                        onClick={() => moveTo(index, index - 1)}
+                        onMouseDown={(event) => event.stopPropagation()}
+                        disabled={disabled || index === 0}
+                        title="Mover antes"
+                        className="rounded px-1 text-xs text-gray-500 transition hover:text-brand-500 disabled:opacity-30"
+                      >
+                        ←
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => moveTo(index, index + 1)}
+                        onMouseDown={(event) => event.stopPropagation()}
+                        disabled={disabled || index === files.length - 1}
+                        title="Mover después"
+                        className="rounded px-1 text-xs text-gray-500 transition hover:text-brand-500 disabled:opacity-30"
+                      >
+                        →
+                      </button>
+                    </span>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )
       )}
     </Field>
   );
