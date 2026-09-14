@@ -16,6 +16,7 @@ import {
     BuildingStorefrontIcon,
     IdentificationIcon,
     PhotoIcon,
+    RectangleStackIcon,
     ShieldCheckIcon,
     Squares2X2Icon,
     TagIcon,
@@ -88,6 +89,12 @@ const navItems: NavItem[] = [
                 name: "Drivers de Soporte",
                 path: "/gsp/drivers",
                 // La API exige ADMIN/ADMIN_GSP/DESARROLLO incluso para listar.
+                roles: GSP_WRITE_ROLES,
+            },
+            {
+                icon: <RectangleStackIcon className="w-4 h-4" />,
+                name: "Sliders",
+                path: "/gsp/sliders",
                 roles: GSP_WRITE_ROLES,
             },
         ],
