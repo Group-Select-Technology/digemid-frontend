@@ -546,7 +546,6 @@ export interface Slider {
 export interface CreateSliderDto {
   title?: string;
   redirectUrl?: string;
-  orderIndex?: number;
   isActive?: boolean;
   /** Ambas imágenes son obligatorias al crear y deben viajar siempre juntas. */
   desktopImage: File;
@@ -556,7 +555,6 @@ export interface CreateSliderDto {
 export interface UpdateSliderDto {
   title?: string;
   redirectUrl?: string;
-  orderIndex?: number;
   isActive?: boolean;
   /** Si se envía una, se debe enviar también la otra (la API rechaza reemplazos parciales). */
   desktopImage?: File;

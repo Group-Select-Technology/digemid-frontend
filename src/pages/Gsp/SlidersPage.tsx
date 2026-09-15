@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
+import { Bars3Icon } from '@heroicons/react/24/outline';
 import { extractApiError } from '../../utils/apiError';
 import { formatDate } from '../../utils/format';
 import { slidersService } from '../../services/slidersService';
@@ -27,6 +28,7 @@ import { PlusIcon } from '../../icons';
 import CanAccess from '../../components/auth/CanAccess';
 import { useAuth } from '../../context/AuthContext';
 import { GSP_WRITE_ROLES, canWriteGsp } from '../../constants/roles';
+import { useSortableReorder } from '../../hooks/useSortableReorder';
 
 const PAGE_SIZE = 10;
 /** Debe coincidir con `MAX_SLIDERS` de la API: el carrusel solo admite 5 banners. */
@@ -37,7 +39,6 @@ type StatusFilter = '' | '0' | '1';
 interface SliderForm {
   title: string;
   redirectUrl: string;
-  orderIndex: string;
   isActive: boolean;
   desktopImage: File[];
   mobileImage: File[];
@@ -46,11 +47,12 @@ interface SliderForm {
 const emptyForm: SliderForm = {
   title: '',
   redirectUrl: '',
-  orderIndex: '',
   isActive: true,
   desktopImage: [],
   mobileImage: [],
 };
+
+const ordinal = (orderIndex: number) => `${orderIndex + 1}.º`;
 
 export default function SlidersPage() {
   const { user } = useAuth();
@@ -74,9 +76,13 @@ export default function SlidersPage() {
   const [detailSlider, setDetailSlider] = useState<Slider | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
 
-  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmType, setConfirmType] = useState<'delete' | 'toggle'>('delete');
   const [targetSlider, setTargetSlider] = useState<Slider | null>(null);
-  const [deleting, setDeleting] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+
+  const canReorder = canWrite && !statusFilter && sliders.length > 1;
+  const { getItemProps, itemClassName } = useSortableReorder(canReorder);
 
   const fetchSliders = useCallback(async (pageIndex: number, isActive: StatusFilter) => {
     setLoading(true);
@@ -121,7 +127,6 @@ export default function SlidersPage() {
     setForm({
       title: slider.title ?? '',
       redirectUrl: slider.redirectUrl ?? '',
-      orderIndex: String(slider.orderIndex),
       isActive: slider.isActive,
       desktopImage: [],
       mobileImage: [],
@@ -158,12 +163,6 @@ export default function SlidersPage() {
       return;
     }
 
-    const orderIndex = form.orderIndex.trim() ? Number(form.orderIndex) : undefined;
-    if (orderIndex !== undefined && (Number.isNaN(orderIndex) || orderIndex < 0 || orderIndex > 4)) {
-      setFormError('El orden debe ser un número entre 0 y 4.');
-      return;
-    }
-
     setSaving(true);
     setFormError(null);
     try {
@@ -171,7 +170,6 @@ export default function SlidersPage() {
         await slidersService.update(editingSlider.id, {
           title: form.title.trim() || undefined,
           redirectUrl: form.redirectUrl.trim() || undefined,
-          orderIndex,
           isActive: form.isActive,
           desktopImage: form.desktopImage[0],
           mobileImage: form.mobileImage[0],
@@ -181,7 +179,6 @@ export default function SlidersPage() {
         await slidersService.create({
           title: form.title.trim() || undefined,
           redirectUrl: form.redirectUrl.trim() || undefined,
-          orderIndex,
           desktopImage: form.desktopImage[0],
           mobileImage: form.mobileImage[0],
         });
@@ -198,30 +195,85 @@ export default function SlidersPage() {
     }
   };
 
-  const handleDelete = async () => {
+  const openConfirm = (slider: Slider, type: 'delete' | 'toggle') => {
+    setTargetSlider(slider);
+    setConfirmType(type);
+    setConfirmOpen(true);
+  };
+
+  const handleConfirm = async () => {
     if (!targetSlider) return;
-    setDeleting(true);
+    setConfirming(true);
     try {
-      await slidersService.remove(targetSlider.id);
-      toast.success('Slider eliminado correctamente.');
-      setDeleteOpen(false);
-      // Si era el último registro de la página, retrocedemos una.
-      const isLastOnPage = sliders.length === 1 && page > 1;
-      if (isLastOnPage) setPage(page - 1);
-      else fetchSliders(page, statusFilter);
+      if (confirmType === 'delete') {
+        await slidersService.remove(targetSlider.id);
+        toast.success('Slider eliminado correctamente.');
+        const isLastOnPage = sliders.length === 1 && page > 1;
+        if (isLastOnPage) {
+          setPage(page - 1);
+          setConfirmOpen(false);
+          return;
+        }
+      } else {
+        await slidersService.update(targetSlider.id, { isActive: !targetSlider.isActive });
+        toast.success(
+          `Slider ${targetSlider.isActive ? 'desactivado' : 'activado'} correctamente.`
+        );
+      }
+      setConfirmOpen(false);
+      fetchSliders(page, statusFilter);
     } catch (err) {
-      setDeleteOpen(false);
-      toast.error(extractApiError(err) ?? 'Error al eliminar el slider.');
+      setConfirmOpen(false);
+      toast.error(extractApiError(err) ?? 'Error al realizar la acción.');
     } finally {
-      setDeleting(false);
+      setConfirming(false);
     }
   };
 
+  const handleReorder = useCallback(
+    async (from: number, to: number) => {
+      const previous = sliders;
+      const next = [...sliders];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      const reindexed = next.map((slider, index) => ({ ...slider, orderIndex: index }));
+      setSliders(reindexed);
+      try {
+        await slidersService.reorder(reindexed.map((slider) => slider.id));
+        toast.success('Orden actualizado.');
+      } catch (err) {
+        setSliders(previous);
+        toast.error(extractApiError(err) ?? 'Error al reordenar los sliders.');
+      }
+    },
+    [sliders]
+  );
+
+  const confirmTexts =
+    confirmType === 'delete'
+      ? {
+          title: 'Eliminar Slider',
+          message: `¿Estás seguro de que deseas eliminar el slider "${targetSlider?.title || `#${targetSlider?.id}`}"?`,
+        }
+      : {
+          title: targetSlider?.isActive ? 'Desactivar Slider' : 'Activar Slider',
+          message: targetSlider?.isActive
+            ? `¿Deseas desactivar "${targetSlider?.title || `#${targetSlider?.id}`}"? Dejará de mostrarse en el carrusel.`
+            : `¿Deseas activar "${targetSlider?.title || `#${targetSlider?.id}`}"?`,
+        };
+
   const columns: Column<Slider>[] = [
+    {
+      header: ' ',
+      className: 'w-10',
+      render: () =>
+        canReorder ? (
+          <Bars3Icon className="h-5 w-5 text-gray-400 dark:text-gray-500" aria-hidden="true" />
+        ) : null,
+    },
     {
       header: '#',
       className: 'w-14',
-      sortValue: (slider) => slider.id,
       render: (slider) => <span className="text-gray-400 dark:text-gray-500">{slider.id}</span>,
     },
     {
@@ -232,12 +284,12 @@ export default function SlidersPage() {
           src={slider.desktopImageUrl}
           alt={slider.title ?? `Slider #${slider.id}`}
           className="h-12 w-20 rounded-lg object-cover"
+          draggable={false}
         />
       ),
     },
     {
       header: 'Título',
-      sortValue: (slider) => slider.title ?? '',
       render: (slider) => (
         <span className="font-medium text-gray-800 dark:text-white/90">
           {slider.title || 'Sin título'}
@@ -256,17 +308,19 @@ export default function SlidersPage() {
     {
       header: 'Orden',
       className: 'w-20',
-      sortValue: (slider) => slider.orderIndex,
       render: (slider) => (
-        <span className="text-sm text-gray-600 dark:text-gray-400">{slider.orderIndex}</span>
+        <span className="text-sm text-gray-600 dark:text-gray-400">{ordinal(slider.orderIndex)}</span>
       ),
     },
     {
       header: 'Estado',
-      sortValue: (slider) => (slider.isActive ? 'Activo' : 'Inactivo'),
       render: (slider) => (
-        <StatusBadge tone={slider.isActive ? 'success' : 'danger'}>
-          {slider.isActive ? 'Activo' : 'Inactivo'}
+        <StatusBadge
+          tone={slider.isActive ? 'success' : 'danger'}
+          onClick={canWrite ? () => openConfirm(slider, 'toggle') : undefined}
+          title={canWrite ? 'Cambiar estado' : undefined}
+        >
+          {slider.isActive ? 'Activa' : 'Inactiva'}
         </StatusBadge>
       ),
     },
@@ -279,10 +333,7 @@ export default function SlidersPage() {
             ...(canWrite
               ? [
                   editAction(() => openEdit(slider)),
-                  deleteAction(() => {
-                    setTargetSlider(slider);
-                    setDeleteOpen(true);
-                  }),
+                  deleteAction(() => openConfirm(slider, 'delete')),
                 ]
               : []),
           ]}
@@ -337,6 +388,16 @@ export default function SlidersPage() {
                 Limpiar filtros
               </Button>
             )}
+            {canWrite && statusFilter && (
+              <p className="self-center text-xs text-gray-400 dark:text-gray-500">
+                Quita el filtro para reordenar.
+              </p>
+            )}
+            {canReorder && (
+              <p className="self-center text-xs text-gray-400 dark:text-gray-500">
+                Mantén presionada una fila y arrástrala para cambiar el orden.
+              </p>
+            )}
           </>
         }
       >
@@ -347,6 +408,9 @@ export default function SlidersPage() {
           error={error}
           emptyMessage="No hay sliders registrados."
           keyExtractor={(slider) => slider.id}
+          sortable={false}
+          getRowProps={(_, index) => getItemProps(index, handleReorder)}
+          rowClassName={(_, index) => itemClassName(index)}
         />
         {!loading && !error && meta && (
           <Pagination meta={meta} page={page} onPageChange={setPage} itemLabel="sliders" />
@@ -385,24 +449,16 @@ export default function SlidersPage() {
             placeholder="/products/pos-808l"
             disabled={saving}
           />
-          <TextField
-            label="Orden (Opcional)"
-            hint="0 = primero. Si no se envía, se agrega al final. Máximo 4."
-            type="number"
-            min={0}
-            value={form.orderIndex}
-            onChange={(orderIndex) => setForm({ ...form, orderIndex })}
-            placeholder="0"
-            disabled={saving}
-          />
           {editingSlider && (
-            <ToggleField
-              label="Activo"
-              description="Visible en el carrusel de la página principal"
-              checked={form.isActive}
-              onChange={(isActive) => setForm({ ...form, isActive })}
-              disabled={saving}
-            />
+            <div className="sm:col-span-2">
+              <ToggleField
+                label="Activo"
+                description="Visible en el carrusel de la página principal"
+                checked={form.isActive}
+                onChange={(isActive) => setForm({ ...form, isActive })}
+                disabled={saving}
+              />
+            </div>
           )}
         </div>
 
@@ -501,7 +557,7 @@ export default function SlidersPage() {
                   <div>
                     <dt className="text-xs text-gray-500 dark:text-gray-400">Orden</dt>
                     <dd className="mt-0.5 text-sm text-gray-800 dark:text-white/90">
-                      {detailSlider.orderIndex}
+                      {ordinal(detailSlider.orderIndex)}
                     </dd>
                   </div>
                   <div>
@@ -529,12 +585,12 @@ export default function SlidersPage() {
       </Modal>
 
       <ConfirmModal
-        isOpen={deleteOpen}
-        onClose={() => setDeleteOpen(false)}
-        onConfirm={handleDelete}
-        loading={deleting}
-        title="Eliminar Slider"
-        message={`¿Estás seguro de que deseas eliminar el slider "${targetSlider?.title || `#${targetSlider?.id}`}"?`}
+        isOpen={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        onConfirm={handleConfirm}
+        loading={confirming}
+        title={confirmTexts.title}
+        message={confirmTexts.message}
       />
     </>
   );
