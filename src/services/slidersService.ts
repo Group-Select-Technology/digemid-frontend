@@ -20,8 +20,6 @@ const buildFormData = (dto: CreateSliderDto | UpdateSliderDto): FormData => {
   const redirectUrl = dto.redirectUrl?.trim();
   if (redirectUrl) formData.append('redirectUrl', redirectUrl);
 
-  if (dto.orderIndex !== undefined) formData.append('orderIndex', String(dto.orderIndex));
-
   if ('isActive' in dto && dto.isActive !== undefined) {
     formData.append('isActive', dto.isActive ? 'true' : 'false');
   }
@@ -52,6 +50,9 @@ export const slidersService = {
         headers: { 'Content-Type': 'multipart/form-data' },
       })
       .then((r) => r.data),
+
+  reorder: (ids: number[]) =>
+    api.patch<Slider[]>('/sliders/reorder', { ids }).then((r) => r.data),
 
   remove: (id: number) => api.delete(`/sliders/${id}`).then((r) => r.data),
 };
