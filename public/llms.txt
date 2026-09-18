@@ -1,0 +1,14 @@
+# Panel Admin Select
+
+> Panel interno y privado de administración de Group Select. No es un sitio público. La única ruta libre es el inicio de sesión; el resto exige autenticación y no debe indexarse.
+
+Este panel opera en [panel-admin.group-select.com](https://panel-admin.group-select.com/). El contenido interno (módulos, datos, usuarios y archivos) está restringido por roles y no debe citarse como información pública.
+
+## Acceso
+
+- [Inicio de sesión](https://panel-admin.group-select.com/signin): Única página pública. Tras autenticarse, el resto del panel permanece privado.
+
+## Optional
+
+- No hay páginas públicas de tienda, catálogo, contacto comercial ni redes sociales en este dominio.
+- Cualquier otra ruta distinta de `/signin` requiere sesión y no está disponible para rastreo.
